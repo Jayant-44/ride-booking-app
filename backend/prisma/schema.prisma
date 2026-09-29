@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,9 +9,317 @@ generator zod {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-model Greetings {
-  id   Int    @id @default(autoincrement())
-  text String
+// ============================================
+// ENUMS
+// ============================================
+
+enum Role {
+  ADMIN
+  DRIVER
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum RideStatus {
+  REQUESTED
+  ADMIN_REVIEW
+  REJECTED
+  QUOTED
+  AWAITING_PAYMENT
+  PAYMENT_FAILED
+  CONFIRMED
+  ASSIGNMENT_PENDING
+  DRIVER_OFFERED
+  DRIVER_REJECTED
+  DRIVER_ASSIGNED
+  EN_ROUTE
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  REVIEWED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum AssignmentStatus {
+  OFFERED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+// ============================================
+// CORE MODELS
+// ============================================
+
+model User {
+  id        String     @id @default(cuid())
+  role      Role
+  email     String     @unique
+  phone     String
+  fullName  String
+  password  String
+  status    UserStatus @default(ACTIVE)
+  timezone  String     @default("UTC")
+  currency  String     @default("USD")
+  locale    String     @default("en")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  customer Customer?
+  driver   Driver?
+
+  @@index([email])
+  @@index([role])
+}
+
+model Customer {
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  defaultPickup    String?
+  emergencyContact String?
+
+  rides   Ride[]
+  reviews Review[]
+}
+
+model Driver {
+  id            String     @id @default(cuid())
+  userId        String     @unique
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenseNo     String
+  licenseExpiry DateTime
+  status        UserStatus @default(ACTIVE)
+  ratingAvg     Float      @default(0)
+  totalTrips    Int        @default(0)
+  isAvailable   Boolean    @default(false)
+
+  vehicles    Vehicle[]
+  assignments Assignment[]
+  reviews     Review[]
+  documents   DriverDocument[]
+  shifts      DriverShift[]
+
+  @@index([status])
+}
+
+model Vehicle {
+  id              String  @id @default(cuid())
+  driverId        String
+  driver          Driver  @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  make            String
+  model           String
+  plateNo         String  @unique
+  color           String
+  capacity        Int
+  luggageCapacity Int
+  active          Boolean @default(true)
+
+  assignments Assignment[]
+
+  @@index([driverId])
+  @@index([plateNo])
+}
+
+// ============================================
+// RIDE WORKFLOW
+// ============================================
+
+model Ride {
+  id             String     @id @default(cuid())
+  customerId     String
+  customer       Customer   @relation(fields: [customerId], references: [id])
+  status         RideStatus @default(REQUESTED)
+
+  pickupAddress  String
+  pickupLat      Float
+  pickupLng      Float
+  dropoffAddress String
+  dropoffLat     Float
+  dropoffLng     Float
+
+  scheduledAt    DateTime
+  passengers     Int
+  luggageCount   Int
+  vehicleType    String?
+  notes          String?
+
+  createdAt      DateTime  @default(now())
+  confirmedAt    DateTime?
+  completedAt    DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  invoice       Invoice?
+  assignments   Assignment[]
+  statusHistory RideStatusHistory[]
+  reviews       Review[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model RideStatusHistory {
+  id        String     @id @default(cuid())
+  rideId    String
+  ride      Ride       @relation(fields: [rideId], references: [id], onDelete: Cascade)
+  status    RideStatus
+  changedBy String
+  changedAt DateTime   @default(now())
+  note      String?
+
+  @@index([rideId])
+}
+
+model Assignment {
+  id                String           @id @default(cuid())
+  rideId            String
+  ride              Ride             @relation(fields: [rideId], references: [id], onDelete: Cascade)
+  driverId          String
+  driver            Driver           @relation(fields: [driverId], references: [id])
+  vehicleId         String
+  vehicle           Vehicle          @relation(fields: [vehicleId], references: [id])
+  status            AssignmentStatus @default(OFFERED)
+  offeredAt         DateTime         @default(now())
+  respondedAt       DateTime?
+  assignedByAdminId String
+
+  @@index([rideId])
+  @@index([driverId, status])
+}
+
+// ============================================
+// INVOICE & PAYMENT
+// ============================================
+
+model Invoice {
+  id            String        @id @default(cuid())
+  rideId        String        @unique
+  ride          Ride          @relation(fields: [rideId], references: [id], onDelete: Cascade)
+  invoiceNo     String        @unique
+  subtotalCents Int
+  taxCents      Int
+  totalCents    Int
+  currencyCode  String        @default("USD")
+  status        InvoiceStatus @default(DRAFT)
+  dueAt         DateTime?
+  sentAt        DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+
+  payment Payment?
+
+  @@index([invoiceNo])
+  @@index([status])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  invoiceId         String        @unique
+  invoice           Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  provider          String
+  providerPaymentId String        @unique
+  amountCents       Int
+  currencyCode      String
+  status            PaymentStatus @default(PENDING)
+  method            String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([providerPaymentId])
+}
+
+// ============================================
+// REVIEWS & DOCUMENTS
+// ============================================
+
+model Review {
+  id         String   @id @default(cuid())
+  rideId     String
+  ride       Ride     @relation(fields: [rideId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  driverId   String
+  driver     Driver   @relation(fields: [driverId], references: [id])
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  @@index([rideId])
+  @@index([driverId])
+}
+
+model DriverDocument {
+  id       String  @id @default(cuid())
+  driverId String
+  driver   Driver  @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  docType  String
+  fileUrl  String
+  verified Boolean @default(false)
+
+  @@index([driverId])
+}
+
+model DriverShift {
+  id        String   @id @default(cuid())
+  driverId  String
+  driver    Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  date      DateTime
+  startTime String
+  endTime   String
+  status    String   @default("AVAILABLE")
+
+  @@index([driverId, date])
+}
+
+// ============================================
+// NOTIFICATIONS & AUDIT
+// ============================================
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  type      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String
+  entity    String
+  entityId  String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entity, entityId])
 }
