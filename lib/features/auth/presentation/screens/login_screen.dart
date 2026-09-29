@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ride_booking/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
+import '../../data/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,15 +25,33 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _loading = true);
+  if (!_formKey.currentState!.validate()) return;
+  setState(() => _loading = true);
 
-    // TODO: call backend here
-    await Future.delayed(const Duration(seconds: 1));
+  final result = await AuthService().login(
+    _emailCtrl.text.trim(),
+    _passwordCtrl.text,
+  );
 
-    setState(() => _loading = false);
-    if (mounted) context.go('/home');
+  if (!mounted) return;
+  setState(() => _loading = false);
+
+  if (result.success) {
+    // Show success + navigate
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Welcome, ${result.user!.fullName}')),
+    );
+    context.go('/home');
+  } else {
+    // Show error
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.error ?? 'Login failed'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
