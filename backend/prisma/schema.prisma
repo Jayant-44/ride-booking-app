@@ -2,14 +2,8 @@ generator client {
   provider = "prisma-client-js"
 }
 
-generator zod {
-  provider = "node_modules/.bin/zod-prisma-types"
-  output   = "./generated/zod"
-}
-
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ============================================
