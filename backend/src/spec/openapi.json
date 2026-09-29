@@ -1,0 +1,43 @@
+{
+	"openapi": "3.0.0",
+	"info": {
+		"title": "My API",
+		"description": "API description",
+		"version": "1.0.0",
+		"contact": {
+			"name": "API Support",
+			"email": "support@example.com"
+		}
+	},
+	"servers": [
+		{
+			"url": "http://localhost:3000",
+			"description": "Development server"
+		}
+	],
+	"paths": {
+		"/example": {
+			"get": {
+				"summary": "Example endpoint",
+				"description": "This is an example endpoint",
+				"responses": {
+					"200": {
+						"description": "Successful response",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"message": {
+											"type": "string"
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

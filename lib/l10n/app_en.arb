@@ -1,0 +1,15 @@
+{
+  "@@locale": "en",
+  "appTitle": "Ride Booking",
+  "welcomeBack": "Welcome back",
+  "signInSubtitle": "Sign in to continue",
+  "email": "Email",
+  "password": "Password",
+  "signIn": "Sign In",
+  "signUp": "Sign Up",
+  "noAccount": "Don't have an account?",
+  "emailRequired": "Email is required",
+  "emailInvalid": "Enter a valid email",
+  "passwordRequired": "Password is required",
+  "passwordTooShort": "Password must be at least 6 characters"
+}
