@@ -1,6 +1,9 @@
-import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
 import '../features/auth/presentation/screens/login_screen.dart';
+import '../features/auth/presentation/screens/register_screen.dart';
+import '../features/home/presentation/screens/home_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/login',
@@ -10,9 +13,17 @@ final appRouter = GoRouter(
       builder: (context, state) => const LoginScreen(),
     ),
     GoRoute(
+      path: '/register',
+      builder: (context, state) => const RegisterScreen(),
+    ),
+    GoRoute(
       path: '/home',
+      builder: (context, state) => const HomeScreen(),
+    ),
+    GoRoute(
+      path: '/request-ride',
       builder: (context, state) => const Scaffold(
-        body: Center(child: Text('Home — next screen to build')),
+        body: Center(child: Text('Ride Request Form — coming next')),
       ),
     ),
   ],
