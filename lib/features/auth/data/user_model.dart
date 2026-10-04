@@ -21,6 +21,18 @@ class User {
     required this.locale,
   });
 
+    Map<String, dynamic> toJson() => {
+        'id': id,
+        'email': email,
+        'fullName': fullName,
+        'phone': phone,
+        'role': role,
+        'status': status,
+        'timezone': timezone,
+        'currency': currency,
+        'locale': locale,
+      };
+
   factory User.fromJson(Map<String, dynamic> json) => User(
         id: json['id'] as String,
         email: json['email'] as String,

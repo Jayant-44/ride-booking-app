@@ -1,15 +1,35 @@
 {
   "@@locale": "en",
   "appTitle": "Ride Booking",
+
   "welcomeBack": "Welcome back",
   "signInSubtitle": "Sign in to continue",
-  "email": "Email",
-  "password": "Password",
   "signIn": "Sign In",
   "signUp": "Sign Up",
   "noAccount": "Don't have an account?",
-  "emailRequired": "Email is required",
-  "emailInvalid": "Enter a valid email",
+
+  "email": "Email Address",
+  "password": "Password",
+  "confirmPassword": "Confirm Password",
+  "fullName": "Full Name",
+  "phone": "Phone Number",
+
+  "emailRequired": "Email address is required",
+  "emailInvalid": "Please enter a valid email address",
+
   "passwordRequired": "Password is required",
-  "passwordTooShort": "Password must be at least 6 characters"
+  "passwordTooShort": "Password must be at least 6 characters",
+  "confirmPasswordRequired": "Please confirm your password",
+  "passwordsDoNotMatch": "Passwords do not match",
+
+  "createAccount": "Create Account",
+  "signUpSubtitle": "Join us and start booking rides",
+  "fullNameRequired": "Full name is required",
+  "phoneRequired": "Phone number is required",
+  "phoneInvalid": "Please enter a valid phone number",
+
+  "alreadyHaveAccount": "Already have an account?",
+  "signInLink": "Sign In",
+
+  "termsAgreement": "I agree to the Terms of Service and Privacy Policy"
 }
