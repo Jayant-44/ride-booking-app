@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_model.dart';
+import '../../../ride/data/ride_model.dart';
+import '../../../ride/data/ride_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,19 +16,23 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   User? _user;
+  List<Ride> _rides = [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadUser();
+    _loadData();
   }
 
-  Future<void> _loadUser() async {
+  Future<void> _loadData() async {
     final user = await AuthService().getStoredUser();
+    final rideResult = await RideService().getMyRides();
+
     if (mounted) {
       setState(() {
         _user = user;
+        _rides = rideResult.rides ?? [];
         _loading = false;
       });
     }
@@ -76,232 +82,234 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFFF4F6FB),
       body: SafeArea(
         top: false,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // ==================== HEADER ====================
-            SliverAppBar(
-              expandedHeight: 230,
-              pinned: true,
-              elevation: 0,
-              backgroundColor: AppTheme.primary,
-              actions: [
-                IconButton(
-                  onPressed: _logout,
-                  icon: const Icon(Icons.logout, color: Colors.white),
-                  tooltip: 'Logout',
-                ),
-                const SizedBox(width: 8),
-              ],
-              flexibleSpace: FlexibleSpaceBar(
-                background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [AppTheme.primary, Color(0xFF3B5BC4)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+        child: RefreshIndicator(
+          onRefresh: _loadData,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            slivers: [
+              // ==================== HEADER ====================
+              SliverAppBar(
+                expandedHeight: 230,
+                pinned: true,
+                elevation: 0,
+                backgroundColor: AppTheme.primary,
+                actions: [
+                  IconButton(
+                    onPressed: _logout,
+                    icon: const Icon(Icons.logout, color: Colors.white),
+                    tooltip: 'Logout',
                   ),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Decorative circles
-                      Positioned(
-                        top: -50,
-                        right: -50,
-                        child: Container(
-                          width: 200,
-                          height: 200,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.08),
+                  const SizedBox(width: 8),
+                ],
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppTheme.primary, Color(0xFF3B5BC4)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned(
+                          top: -50,
+                          right: -50,
+                          child: Container(
+                            width: 200,
+                            height: 200,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.08),
+                            ),
                           ),
                         ),
-                      ),
-                      Positioned(
-                        bottom: -80,
-                        left: -60,
-                        child: Container(
-                          width: 240,
-                          height: 240,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.05),
+                        Positioned(
+                          bottom: -80,
+                          left: -60,
+                          child: Container(
+                            width: 240,
+                            height: 240,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.05),
+                            ),
                           ),
                         ),
-                      ),
-                      // User info
-                      Positioned(
-                        left: 20,
-                        right: 20,
-                        bottom: 28,
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(3),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white.withValues(alpha: 0.25),
-                              ),
-                              child: CircleAvatar(
-                                radius: 30,
-                                backgroundColor: Colors.white,
-                                child: Text(
-                                  initials,
-                                  style: TextStyle(
-                                    color: AppTheme.primary,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
+                        Positioned(
+                          left: 20,
+                          right: 20,
+                          bottom: 28,
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 30,
+                                  backgroundColor: Colors.white,
+                                  child: Text(
+                                    initials,
+                                    style: TextStyle(
+                                      color: AppTheme.primary,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'Welcome back,',
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.8),
-                                      fontSize: 13,
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Welcome back,',
+                                      style: TextStyle(
+                                        color:
+                                            Colors.white.withValues(alpha: 0.8),
+                                        fontSize: 13,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    firstName,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: -0.3,
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      firstName,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: -0.3,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            // ==================== BODY ====================
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  // Book a ride card
-                  _BookRideCard(
-                    onTap: () => context.go('/request-ride'),
-                  ),
+              // ==================== BODY ====================
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _BookRideCard(onTap: () => context.go('/request-ride')),
+                    const SizedBox(height: 24),
 
-                  const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _StatCard(
+                            icon: Icons.local_taxi_outlined,
+                            label: 'Rides',
+                            value: _rides.length.toString(),
+                            color: const Color(0xFF3B5BC4),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: _StatCard(
+                            icon: Icons.star_outline_rounded,
+                            label: 'Rating',
+                            value: '—',
+                            color: Color(0xFFF59E0B),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: _StatCard(
+                            icon: Icons.account_balance_wallet_outlined,
+                            label: 'Spent',
+                            value: '₹0',
+                            color: Color(0xFF10B981),
+                          ),
+                        ),
+                      ],
+                    ),
 
-                  // Stats row
-                  Row(
-                    children: const [
-                      Expanded(
-                        child: _StatCard(
-                          icon: Icons.local_taxi_outlined,
-                          label: 'Rides',
-                          value: '0',
-                          color: Color(0xFF3B5BC4),
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: _StatCard(
-                          icon: Icons.star_outline_rounded,
-                          label: 'Rating',
-                          value: '—',
-                          color: Color(0xFFF59E0B),
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: _StatCard(
-                          icon: Icons.account_balance_wallet_outlined,
-                          label: 'Spent',
-                          value: '₹0',
-                          color: Color(0xFF10B981),
-                        ),
-                      ),
-                    ],
-                  ),
+                    const SizedBox(height: 28),
+                    _SectionHeader(
+                      title: 'Upcoming Rides',
+                      actionLabel: 'See all',
+                      onAction: () {},
+                    ),
+                    const SizedBox(height: 12),
 
-                  const SizedBox(height: 28),
+                    if (_rides.isEmpty)
+                      const _EmptyStateCard(
+                        icon: Icons.event_available_outlined,
+                        title: 'No upcoming rides',
+                        subtitle: 'Book your first ride to get started',
+                      )
+                    else
+                      ..._rides.map((ride) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _RideCard(ride: ride),
+                          )),
 
-                  // Upcoming rides
-                  _SectionHeader(
-                    title: 'Upcoming Rides',
-                    actionLabel: 'See all',
-                    onAction: () {},
-                  ),
-                  const SizedBox(height: 12),
-                  const _EmptyStateCard(
-                    icon: Icons.event_available_outlined,
-                    title: 'No upcoming rides',
-                    subtitle: 'Your booked rides will appear here',
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // Quick actions
-                  const _SectionHeader(title: 'Quick Actions'),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _QuickActionTile(
-                          icon: Icons.history_rounded,
-                          label: 'History',
-                          color: const Color(0xFF8B5CF6),
-                          onTap: () {},
+                    const SizedBox(height: 28),
+                    const _SectionHeader(title: 'Quick Actions'),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _QuickActionTile(
+                            icon: Icons.history_rounded,
+                            label: 'History',
+                            color: const Color(0xFF8B5CF6),
+                            onTap: () {},
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _QuickActionTile(
-                          icon: Icons.person_outline_rounded,
-                          label: 'Profile',
-                          color: const Color(0xFF06B6D4),
-                          onTap: () {},
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _QuickActionTile(
+                            icon: Icons.person_outline_rounded,
+                            label: 'Profile',
+                            color: const Color(0xFF06B6D4),
+                            onTap: () {},
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _QuickActionTile(
-                          icon: Icons.support_agent_rounded,
-                          label: 'Support',
-                          color: const Color(0xFFF97316),
-                          onTap: () {},
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _QuickActionTile(
+                            icon: Icons.support_agent_rounded,
+                            label: 'Support',
+                            color: const Color(0xFFF97316),
+                            onTap: () {},
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _QuickActionTile(
-                          icon: Icons.settings_outlined,
-                          label: 'Settings',
-                          color: const Color(0xFF64748B),
-                          onTap: () {},
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _QuickActionTile(
+                            icon: Icons.settings_outlined,
+                            label: 'Settings',
+                            color: const Color(0xFF64748B),
+                            onTap: () {},
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ]),
+                      ],
+                    ),
+                  ]),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -631,6 +639,132 @@ class _QuickActionTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+class _RideCard extends StatelessWidget {
+  final Ride ride;
+  const _RideCard({required this.ride});
+
+  Color get _statusColor {
+    if (ride.status == 'CANCELLED' || ride.status == 'REJECTED') {
+      return AppTheme.error;
+    }
+    if (ride.status == 'COMPLETED' || ride.status == 'REVIEWED') {
+      return const Color(0xFF10B981);
+    }
+    return const Color(0xFFF59E0B);
+  }
+
+  String get _dateLabel {
+    final d = ride.scheduledAt;
+    final h = d.hour.toString().padLeft(2, '0');
+    final m = d.minute.toString().padLeft(2, '0');
+    return '${d.day}/${d.month}/${d.year} • $h:$m';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _dateLabel,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  ride.statusLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: _statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _RouteLine(
+            icon: Icons.my_location_rounded,
+            color: const Color(0xFF10B981),
+            text: ride.pickupAddress,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: Container(
+              width: 2,
+              height: 16,
+              color: Colors.grey.shade300,
+            ),
+          ),
+          _RouteLine(
+            icon: Icons.location_on_rounded,
+            color: AppTheme.error,
+            text: ride.dropoffAddress,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RouteLine extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  const _RouteLine({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
