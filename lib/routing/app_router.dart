@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/screens/login_screen.dart';
@@ -24,12 +23,6 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/request-ride',
       builder: (context, state) => const RideRequestScreen(),
-    ),
-    GoRoute(
-      path: '/request-ride',
-      builder: (context, state) => const Scaffold(
-        body: Center(child: Text('Ride Request Form — coming next')),
-      ),
     ),
   ],
 );

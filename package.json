@@ -1,5 +1,12 @@
 {
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "tailwindcss": "^4.3.3",
     "tsconfig-paths": "^4.2.0"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.104.1",
+    "axios": "^1.20.0",
+    "react-router-dom": "^7.18.4"
   }
 }

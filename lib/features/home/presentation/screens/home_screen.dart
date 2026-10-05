@@ -14,7 +14,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   User? _user;
   List<Ride> _rides = [];
   bool _loading = true;
@@ -22,7 +22,21 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {
@@ -91,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
             slivers: [
               // ==================== HEADER ====================
               SliverAppBar(
-                expandedHeight: 230,
+                expandedHeight: 100,
                 pinned: true,
                 elevation: 0,
                 backgroundColor: AppTheme.primary,
@@ -116,11 +130,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       clipBehavior: Clip.none,
                       children: [
                         Positioned(
-                          top: -50,
-                          right: -50,
+                          top: -30,
+                          right: -30,
                           child: Container(
-                            width: 200,
-                            height: 200,
+                            width: 130,
+                            height: 130,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: Colors.white.withValues(alpha: 0.08),
@@ -128,11 +142,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         Positioned(
-                          bottom: -80,
-                          left: -60,
+                          bottom: -50,
+                          left: -40,
                           child: Container(
-                            width: 240,
-                            height: 240,
+                            width: 150,
+                            height: 150,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: Colors.white.withValues(alpha: 0.05),
@@ -140,31 +154,31 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         Positioned(
-                          left: 20,
-                          right: 20,
-                          bottom: 28,
+                          left: 16,
+                          right: 16,
+                          bottom: 10,
                           child: Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(3),
+                                padding: const EdgeInsets.all(2),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: Colors.white.withValues(alpha: 0.25),
                                 ),
                                 child: CircleAvatar(
-                                  radius: 30,
+                                  radius: 18,
                                   backgroundColor: Colors.white,
                                   child: Text(
                                     initials,
                                     style: TextStyle(
                                       color: AppTheme.primary,
-                                      fontSize: 22,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 14),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,19 +187,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                     Text(
                                       'Welcome back,',
                                       style: TextStyle(
-                                        color:
-                                            Colors.white.withValues(alpha: 0.8),
-                                        fontSize: 13,
+                                        color: Colors.white
+                                            .withValues(alpha: 0.8),
+                                        fontSize: 10,
                                       ),
                                     ),
-                                    const SizedBox(height: 2),
                                     Text(
                                       firstName,
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 24,
+                                        fontSize: 17,
                                         fontWeight: FontWeight.bold,
-                                        letterSpacing: -0.3,
+                                        letterSpacing: -0.2,
                                       ),
                                     ),
                                   ],
@@ -642,6 +655,7 @@ class _QuickActionTile extends StatelessWidget {
     );
   }
 }
+
 class _RideCard extends StatelessWidget {
   final Ride ride;
   const _RideCard({required this.ride});

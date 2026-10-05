@@ -95,9 +95,10 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    await _storage.delete(key: 'jwt_token');
-    await _storage.delete(key: 'user_json');
-  }
+  await _storage.delete(key: 'jwt_token');
+  await _storage.delete(key: 'user_role');
+  await _storage.delete(key: 'user_json');
+}
 
   Future<bool> isLoggedIn() async {
     final token = await _storage.read(key: 'jwt_token');

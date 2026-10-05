@@ -1,5 +1,6 @@
 {
   "@@locale": "en",
+
   "appTitle": "Ride Booking",
 
   "welcomeBack": "Welcome back",
@@ -7,6 +8,7 @@
   "signIn": "Sign In",
   "signUp": "Sign Up",
   "noAccount": "Don't have an account?",
+  "haveAccount": "Already have an account?",
 
   "email": "Email Address",
   "password": "Password",
@@ -23,7 +25,9 @@
   "passwordsDoNotMatch": "Passwords do not match",
 
   "createAccount": "Create Account",
+  "createAccountSubtitle": "Sign up to get started",
   "signUpSubtitle": "Join us and start booking rides",
+
   "fullNameRequired": "Full name is required",
   "phoneRequired": "Phone number is required",
   "phoneInvalid": "Please enter a valid phone number",
@@ -31,5 +35,18 @@
   "alreadyHaveAccount": "Already have an account?",
   "signInLink": "Sign In",
 
-  "termsAgreement": "I agree to the Terms of Service and Privacy Policy"
+  "termsAgreement": "I agree to the Terms of Service and Privacy Policy",
+
+  "welcomeUser": "Welcome, {name}",
+  "@welcomeUser": {
+    "placeholders": {"name": {"type": "String"}}
+  },
+
+  "bookARide": "Book a Ride",
+  "upcomingRides": "Upcoming Rides",
+  "noUpcomingRides": "No upcoming rides yet",
+
+  "registrationSuccessful": "Account created successfully",
+  "logOut": "Log Out",
+  "logoutConfirm": "Are you sure you want to log out?"
 }

@@ -139,10 +139,15 @@ class _RideRequestScreenState extends State<RideRequestScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
       appBar: AppBar(
+          leading: IconButton(
+    icon: const Icon(Icons.arrow_back_rounded),
+    onPressed: () => context.go('/home'),
+  ),
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         title: const Text('Book a Ride'),
+      
       ),
       body: SafeArea(
         child: SingleChildScrollView(
