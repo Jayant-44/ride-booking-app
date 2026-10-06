@@ -68,3 +68,5 @@ Desktop.ini
 # ============================================
 *.log
 logs/
+# Widget Preview related
+.widget_preview/
