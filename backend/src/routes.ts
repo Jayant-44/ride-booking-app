@@ -2,12 +2,14 @@ import express from 'express';
 
 import authRouter from './modules/auth/router.js';
 import ridesRouter from './modules/rides/router.js';
+import invoicesRouter from './modules/invoices/router.js';
 import adminRouter from './modules/admin/router.js';
 
 const router = express.Router();
 
 router.use('/api/auth', authRouter);
 router.use('/api/rides', ridesRouter);
+router.use('/api/invoices', invoicesRouter);
 router.use('/api/admin', adminRouter);
 
 router.get('/health', (req, res) => {

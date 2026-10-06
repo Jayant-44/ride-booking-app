@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 
@@ -17,27 +18,40 @@ interface Ride {
       phone: string;
     };
   };
+  invoice?: {
+    id: string;
+    invoiceNo: string;
+    totalCents: number;
+    currencyCode: string;
+    status: string;
+  } | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
+  REQUESTED: 'bg-amber-100 text-amber-800',
+  ADMIN_REVIEW: 'bg-blue-100 text-blue-800',
+  QUOTED: 'bg-purple-100 text-purple-800',
+  AWAITING_PAYMENT: 'bg-purple-100 text-purple-800',
+  CONFIRMED: 'bg-emerald-100 text-emerald-800',
+  REJECTED: 'bg-red-100 text-red-800',
+  CANCELLED: 'bg-slate-100 text-slate-700',
+  COMPLETED: 'bg-green-100 text-green-800',
+};
+
+const STATUS_LABELS: Record<string, string> = {
   REQUESTED: 'New',
   ADMIN_REVIEW: 'Reviewed',
   QUOTED: 'Invoice Sent',
   AWAITING_PAYMENT: 'Awaiting Payment',
   CONFIRMED: 'Confirmed',
-  DRIVER_OFFERED: 'Driver Offered',
-  DRIVER_ASSIGNED: 'Driver Assigned',
-  EN_ROUTE: 'Driver En Route',
-  ARRIVED: 'Driver Arrived',
-  IN_PROGRESS: 'In Progress',
-  COMPLETED: 'Completed',
-  REVIEWED: 'Reviewed',
   REJECTED: 'Rejected',
   CANCELLED: 'Cancelled',
+  COMPLETED: 'Completed',
 };
 
 export default function Rides() {
   const queryClient = useQueryClient();
+  const [invoiceRide, setInvoiceRide] = useState<Ride | null>(null);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['admin', 'rides'],
@@ -45,11 +59,11 @@ export default function Rides() {
       const res = await api.get('/admin/rides');
       return res.data.data as Ride[];
     },
+    refetchInterval: 10000, // auto-refresh every 10s so new rides appear
   });
 
   const approveMutation = useMutation({
-    mutationFn: (rideId: string) =>
-      api.patch(`/admin/rides/${rideId}/approve`),
+    mutationFn: (rideId: string) => api.patch(`/admin/rides/${rideId}/approve`),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['admin', 'rides'] }),
   });
@@ -92,9 +106,21 @@ export default function Rides() {
 
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Ride Requests</h1>
-        <p className="text-sm text-slate-500 mt-1">{data?.length ?? 0} total</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Ride Requests</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {data?.length ?? 0} total
+          </p>
+        </div>
+        <button
+          onClick={() =>
+            queryClient.invalidateQueries({ queryKey: ['admin', 'rides'] })
+          }
+          className="px-4 py-2 text-sm bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
+        >
+          Refresh
+        </button>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -155,14 +181,14 @@ export default function Rides() {
                 <td className="px-4 py-3">
                   <span
                     className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                      STATUS_COLORS[ride.status] ||
-                      'bg-slate-100 text-slate-700'
+                      STATUS_COLORS[ride.status] || 'bg-slate-100 text-slate-700'
                     }`}
                   >
-                    {ride.status}
+                    {STATUS_LABELS[ride.status] ?? ride.status}
                   </span>
                 </td>
                 <td className="px-4 py-3">
+                  {/* REQUESTED → Approve or Reject */}
                   {ride.status === 'REQUESTED' && (
                     <div className="flex gap-2">
                       <button
@@ -170,7 +196,7 @@ export default function Rides() {
                         disabled={approveMutation.isPending}
                         className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg disabled:opacity-50"
                       >
-                        Mark Reviewed
+                        Approve
                       </button>
                       <button
                         onClick={() => rejectMutation.mutate(ride.id)}
@@ -181,9 +207,28 @@ export default function Rides() {
                       </button>
                     </div>
                   )}
+
+                  {/* ADMIN_REVIEW → Send Invoice */}
                   {ride.status === 'ADMIN_REVIEW' && (
+                    <button
+                      onClick={() => setInvoiceRide(ride)}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg"
+                    >
+                      Send Invoice
+                    </button>
+                  )}
+
+                  {/* QUOTED → waiting for payment */}
+                  {ride.status === 'QUOTED' && (
                     <span className="text-xs text-slate-500">
-                      Awaiting invoice
+                      Invoice sent · awaiting payment
+                    </span>
+                  )}
+
+                  {/* CONFIRMED → ready for driver assignment */}
+                  {ride.status === 'CONFIRMED' && (
+                    <span className="text-xs text-emerald-600 font-medium">
+                      Paid · assign driver
                     </span>
                   )}
                 </td>
@@ -192,10 +237,7 @@ export default function Rides() {
 
             {data?.length === 0 && (
               <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-12 text-center text-slate-500"
-                >
+                <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
                   No rides yet. When a customer submits a ride request, it will
                   appear here.
                 </td>
@@ -203,6 +245,170 @@ export default function Rides() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Invoice Modal */}
+      {invoiceRide && (
+        <InvoiceModal
+          ride={invoiceRide}
+          onClose={() => setInvoiceRide(null)}
+          onSuccess={() => {
+            setInvoiceRide(null);
+            queryClient.invalidateQueries({ queryKey: ['admin', 'rides'] });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// INVOICE MODAL
+// ============================================================
+
+interface InvoiceModalProps {
+  ride: Ride;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function InvoiceModal({ ride, onClose, onSuccess }: InvoiceModalProps) {
+  const [subtotal, setSubtotal] = useState('500');
+  const [tax, setTax] = useState('90');
+  const [currency, setCurrency] = useState('INR');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const subtotalCents = Math.round(parseFloat(subtotal || '0') * 100);
+  const taxCents = Math.round(parseFloat(tax || '0') * 100);
+  const totalCents = subtotalCents + taxCents;
+
+  const currencySymbol =
+    currency === 'INR' ? '₹' : currency === 'USD' ? '$' : currency + ' ';
+
+  const handleSubmit = async () => {
+    if (subtotalCents < 0 || taxCents < 0) {
+      setError('Amounts cannot be negative');
+      return;
+    }
+    if (totalCents === 0) {
+      setError('Total must be greater than zero');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await api.post(`/admin/rides/${ride.id}/invoice`, {
+        subtotalCents,
+        taxCents,
+        currencyCode: currency,
+      });
+      onSuccess();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to create invoice');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="px-6 py-5 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-900">Send Invoice</h2>
+          <p className="text-xs text-slate-500 mt-1">
+            {ride.customer.user.fullName} ·{' '}
+            {new Date(ride.scheduledAt).toLocaleDateString('en-IN')}
+          </p>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600">
+            <div className="truncate">
+              <span className="text-emerald-600">●</span> {ride.pickupAddress}
+            </div>
+            <div className="truncate">
+              <span className="text-red-600">●</span> {ride.dropoffAddress}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Currency
+            </label>
+            <select
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+            >
+              <option value="INR">INR — ₹</option>
+              <option value="USD">USD — $</option>
+              <option value="EUR">EUR — €</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Subtotal
+              </label>
+              <input
+                type="number"
+                value={subtotal}
+                onChange={(e) => setSubtotal(e.target.value)}
+                min="0"
+                step="0.01"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Tax
+              </label>
+              <input
+                type="number"
+                value={tax}
+                onChange={(e) => setTax(e.target.value)}
+                min="0"
+                step="0.01"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="bg-slate-50 rounded-lg p-4 flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-600">Total</span>
+            <span className="text-lg font-bold text-slate-900">
+              {currencySymbol}
+              {(totalCents / 100).toFixed(2)}
+            </span>
+          </div>
+
+          {error && (
+            <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+          >
+            {loading ? 'Sending...' : 'Send Invoice'}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -140,4 +140,59 @@ export const AdminService = {
 
     return { total, pending, confirmed, completed };
   },
+    async createInvoiceForRide(
+    adminId: string,
+    rideId: string,
+    input: { subtotalCents: number; taxCents: number; currencyCode: string }
+  ) {
+    const ride = await prisma.ride.findUnique({ where: { id: rideId } });
+    if (!ride) throw new Error('RIDE_NOT_FOUND');
+
+    if (ride.status !== 'ADMIN_REVIEW') {
+      throw new Error('RIDE_NOT_READY_FOR_INVOICE');
+    }
+
+    const existing = await prisma.invoice.findUnique({ where: { rideId } });
+    if (existing) throw new Error('INVOICE_ALREADY_EXISTS');
+
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    const invoiceNo = `INV-${y}${m}${d}-${rand}`;
+
+    const totalCents = input.subtotalCents + input.taxCents;
+
+    return prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.create({
+        data: {
+          rideId,
+          invoiceNo,
+          subtotalCents: input.subtotalCents,
+          taxCents: input.taxCents,
+          totalCents,
+          currencyCode: input.currencyCode,
+          status: 'SENT',
+          sentAt: new Date(),
+        },
+      });
+
+      await tx.ride.update({
+        where: { id: rideId },
+        data: { status: 'QUOTED' },
+      });
+
+      await tx.rideStatusHistory.create({
+        data: {
+          rideId,
+          status: 'QUOTED',
+          changedBy: adminId,
+          note: `Invoice ${invoiceNo} sent`,
+        },
+      });
+
+      return invoice;
+    });
+  },
 };

@@ -9,6 +9,7 @@ import {
   approveRideController,
   rejectRideController,
   statsController,
+  createInvoiceController,
 } from './controller.js';
 
 const router = Router();
@@ -21,5 +22,6 @@ router.get('/rides', listRidesController);
 router.get('/rides/:id', getRideController);
 router.patch('/rides/:id/approve', approveRideController);
 router.patch('/rides/:id/reject', rejectRideController);
+router.post('/rides/:id/invoice', createInvoiceController);
 
 export default router;

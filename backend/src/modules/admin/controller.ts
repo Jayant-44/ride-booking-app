@@ -84,3 +84,47 @@ export async function statsController(_req: Request, res: Response): Promise<voi
   const stats = await AdminService.getStats();
   res.success(stats);
 }
+
+export async function createInvoiceController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const adminId = getUserId(req);
+  if (!adminId) {
+    res.status(401).json({ success: false, message: 'Not authenticated' });
+    return;
+  }
+
+  const { CreateInvoiceSchema } = await import('../invoices/schemas.js');
+  const validation = customParse(CreateInvoiceSchema, req.body);
+  if (!validation.success) throw new ValidationError(validation.message);
+
+  try {
+    const invoice = await AdminService.createInvoiceForRide(
+      adminId,
+      String(req.params.id),
+      validation.data
+    );
+    res.success(invoice, 'Invoice created and sent');
+  } catch (err) {
+    if (err instanceof Error && err.message === 'RIDE_NOT_FOUND') {
+      res.status(404).json({ success: false, message: 'Ride not found' });
+      return;
+    }
+    if (err instanceof Error && err.message === 'RIDE_NOT_READY_FOR_INVOICE') {
+      res.status(400).json({
+        success: false,
+        message: 'Ride must be marked as reviewed before creating an invoice',
+      });
+      return;
+    }
+    if (err instanceof Error && err.message === 'INVOICE_ALREADY_EXISTS') {
+      res.status(409).json({
+        success: false,
+        message: 'An invoice already exists for this ride',
+      });
+      return;
+    }
+    throw err;
+  }
+}

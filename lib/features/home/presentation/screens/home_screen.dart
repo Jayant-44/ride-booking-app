@@ -6,6 +6,8 @@ import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_model.dart';
 import '../../../ride/data/ride_model.dart';
 import '../../../ride/data/ride_service.dart';
+import '../../../invoice/data/invoice_model.dart';
+import '../../../invoice/data/invoice_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +20,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   User? _user;
   List<Ride> _rides = [];
   bool _loading = true;
+  List<Invoice> _invoices = [];
 
   @override
   void initState() {
@@ -42,13 +45,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadData() async {
     final user = await AuthService().getStoredUser();
     final rideResult = await RideService().getMyRides();
+    final invoiceResult = await InvoiceService().getMyInvoices();
 
     if (mounted) {
       setState(() {
         _user = user;
         _rides = rideResult.rides ?? [];
+        _invoices = invoiceResult.invoices ?? [];
         _loading = false;
       });
+    }
+  }
+
+  Invoice? get _payableInvoice {
+    try {
+      return _invoices.firstWhere((inv) => inv.isPayable);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -105,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             slivers: [
               // ==================== HEADER ====================
               SliverAppBar(
-                expandedHeight: 100,
+                expandedHeight: 78,
                 pinned: true,
                 elevation: 0,
                 backgroundColor: AppTheme.primary,
@@ -218,6 +231,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
+                    if (_payableInvoice != null) ...[
+                      _PaymentDueCard(
+                        invoice: _payableInvoice!,
+                        onTap: () => context.go('/invoice/${_payableInvoice!.id}'),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     _BookRideCard(onTap: () => context.go('/request-ride')),
                     const SizedBox(height: 24),
 
@@ -779,6 +799,88 @@ class _RouteLine extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PaymentDueCard extends StatelessWidget {
+  final Invoice invoice;
+  final VoidCallback onTap;
+
+  const _PaymentDueCard({required this.invoice, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFF59E0B), Color(0xFFEA580C)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.receipt_long_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Payment Due',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Invoice ${invoice.invoiceNo} · ${invoice.totalFormatted}',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
