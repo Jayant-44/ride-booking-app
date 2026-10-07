@@ -19,17 +19,30 @@ export default function Layout() {
 
         <nav className="flex-1 p-4 space-y-1">
           <NavLink
-  to="/rides"
-  className={({ isActive }: { isActive: boolean }) =>
-    `block px-4 py-2 rounded-lg text-sm font-medium transition ${
-      isActive
-        ? 'bg-slate-800 text-white'
-        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-    }`
-  }
->
-  Rides
-</NavLink>
+            to="/rides"
+            className={({ isActive }: { isActive: boolean }) =>
+              `block px-4 py-2 rounded-lg text-sm font-medium transition ${
+                isActive
+                  ? 'bg-slate-800 text-white'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+              }`
+            }
+          >
+            Rides
+          </NavLink>
+
+          <NavLink
+            to="/drivers"
+            className={({ isActive }: { isActive: boolean }) =>
+              `block px-4 py-2 rounded-lg text-sm font-medium transition ${
+                isActive
+                  ? 'bg-slate-800 text-white'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+              }`
+            }
+          >
+            Drivers
+          </NavLink>
         </nav>
 
         <div className="p-4 border-t border-slate-800">

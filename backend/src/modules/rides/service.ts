@@ -49,6 +49,25 @@ export const RideService = {
       where: { customerId: customer.id },
       orderBy: { scheduledAt: 'desc' },
       take: 50,
+      include: {
+        assignments: {
+          where: { status: 'ACCEPTED' },
+          take: 1,
+          include: {
+            driver: {
+              include: {
+                user: {
+                  select: {
+                    fullName: true,
+                    phone: true,
+                  },
+                },
+              },
+            },
+            vehicle: true,
+          },
+        },
+      },
     });
   },
 

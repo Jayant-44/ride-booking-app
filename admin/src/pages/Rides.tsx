@@ -12,19 +12,27 @@ interface Ride {
   luggageCount: number;
   vehicleType: string | null;
   customer: {
-    user: {
-      fullName: string;
-      email: string;
-      phone: string;
-    };
+    user: { fullName: string; email: string; phone: string };
   };
-  invoice?: {
-    id: string;
-    invoiceNo: string;
-    totalCents: number;
-    currencyCode: string;
-    status: string;
-  } | null;
+}
+
+interface DriverVehicle {
+  id: string;
+  make: string;
+  model: string;
+  plateNo: string;
+  color: string;
+  capacity: number;
+  luggageCapacity: number;
+}
+
+interface AvailableDriver {
+  id: string;
+  licenseNo: string;
+  ratingAvg: number;
+  totalTrips: number;
+  user: { fullName: string; phone: string; email: string };
+  vehicles: DriverVehicle[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -33,9 +41,14 @@ const STATUS_COLORS: Record<string, string> = {
   QUOTED: 'bg-purple-100 text-purple-800',
   AWAITING_PAYMENT: 'bg-purple-100 text-purple-800',
   CONFIRMED: 'bg-emerald-100 text-emerald-800',
+  DRIVER_OFFERED: 'bg-indigo-100 text-indigo-800',
+  DRIVER_ASSIGNED: 'bg-teal-100 text-teal-800',
+  EN_ROUTE: 'bg-sky-100 text-sky-800',
+  ARRIVED: 'bg-sky-100 text-sky-800',
+  IN_PROGRESS: 'bg-cyan-100 text-cyan-800',
+  COMPLETED: 'bg-green-100 text-green-800',
   REJECTED: 'bg-red-100 text-red-800',
   CANCELLED: 'bg-slate-100 text-slate-700',
-  COMPLETED: 'bg-green-100 text-green-800',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -44,14 +57,20 @@ const STATUS_LABELS: Record<string, string> = {
   QUOTED: 'Invoice Sent',
   AWAITING_PAYMENT: 'Awaiting Payment',
   CONFIRMED: 'Confirmed',
+  DRIVER_OFFERED: 'Driver Offered',
+  DRIVER_ASSIGNED: 'Driver Assigned',
+  EN_ROUTE: 'En Route',
+  ARRIVED: 'Arrived',
+  IN_PROGRESS: 'In Progress',
+  COMPLETED: 'Completed',
   REJECTED: 'Rejected',
   CANCELLED: 'Cancelled',
-  COMPLETED: 'Completed',
 };
 
 export default function Rides() {
   const queryClient = useQueryClient();
   const [invoiceRide, setInvoiceRide] = useState<Ride | null>(null);
+  const [dispatchRide, setDispatchRide] = useState<Ride | null>(null);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['admin', 'rides'],
@@ -59,7 +78,7 @@ export default function Rides() {
       const res = await api.get('/admin/rides');
       return res.data.data as Ride[];
     },
-    refetchInterval: 10000, // auto-refresh every 10s so new rides appear
+    refetchInterval: 10000,
   });
 
   const approveMutation = useMutation({
@@ -70,9 +89,7 @@ export default function Rides() {
 
   const rejectMutation = useMutation({
     mutationFn: (rideId: string) =>
-      api.patch(`/admin/rides/${rideId}/reject`, {
-        reason: 'Rejected by admin',
-      }),
+      api.patch(`/admin/rides/${rideId}/reject`, { reason: 'Rejected by admin' }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['admin', 'rides'] }),
   });
@@ -85,6 +102,9 @@ export default function Rides() {
       hour: '2-digit',
       minute: '2-digit',
     });
+
+  const refresh = () =>
+    queryClient.invalidateQueries({ queryKey: ['admin', 'rides'] });
 
   if (isLoading) {
     return (
@@ -109,14 +129,10 @@ export default function Rides() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Ride Requests</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            {data?.length ?? 0} total
-          </p>
+          <p className="text-sm text-slate-500 mt-1">{data?.length ?? 0} total</p>
         </div>
         <button
-          onClick={() =>
-            queryClient.invalidateQueries({ queryKey: ['admin', 'rides'] })
-          }
+          onClick={refresh}
           className="px-4 py-2 text-sm bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
         >
           Refresh
@@ -127,24 +143,12 @@ export default function Rides() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="text-left px-4 py-3 font-semibold text-slate-600">
-                Scheduled
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-600">
-                Customer
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-600">
-                Route
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-600">
-                Details
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-600">
-                Status
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-600">
-                Actions
-              </th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">Scheduled</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">Customer</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">Route</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">Details</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">Status</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -166,12 +170,10 @@ export default function Rides() {
                 </td>
                 <td className="px-4 py-3 max-w-xs">
                   <div className="text-slate-700 truncate">
-                    <span className="text-emerald-600">●</span>{' '}
-                    {ride.pickupAddress}
+                    <span className="text-emerald-600">●</span> {ride.pickupAddress}
                   </div>
                   <div className="text-slate-700 truncate">
-                    <span className="text-red-600">●</span>{' '}
-                    {ride.dropoffAddress}
+                    <span className="text-red-600">●</span> {ride.dropoffAddress}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-xs text-slate-600">
@@ -188,7 +190,6 @@ export default function Rides() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {/* REQUESTED → Approve or Reject */}
                   {ride.status === 'REQUESTED' && (
                     <div className="flex gap-2">
                       <button
@@ -208,7 +209,6 @@ export default function Rides() {
                     </div>
                   )}
 
-                  {/* ADMIN_REVIEW → Send Invoice */}
                   {ride.status === 'ADMIN_REVIEW' && (
                     <button
                       onClick={() => setInvoiceRide(ride)}
@@ -218,17 +218,30 @@ export default function Rides() {
                     </button>
                   )}
 
-                  {/* QUOTED → waiting for payment */}
                   {ride.status === 'QUOTED' && (
                     <span className="text-xs text-slate-500">
-                      Invoice sent · awaiting payment
+                      Awaiting payment
                     </span>
                   )}
 
-                  {/* CONFIRMED → ready for driver assignment */}
                   {ride.status === 'CONFIRMED' && (
-                    <span className="text-xs text-emerald-600 font-medium">
-                      Paid · assign driver
+                    <button
+                      onClick={() => setDispatchRide(ride)}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg"
+                    >
+                      Assign Driver
+                    </button>
+                  )}
+
+                  {ride.status === 'DRIVER_OFFERED' && (
+                    <span className="text-xs text-indigo-600 font-medium">
+                      Waiting for driver to accept
+                    </span>
+                  )}
+
+                  {ride.status === 'DRIVER_ASSIGNED' && (
+                    <span className="text-xs text-teal-600 font-medium">
+                      Driver accepted
                     </span>
                   )}
                 </td>
@@ -247,14 +260,24 @@ export default function Rides() {
         </table>
       </div>
 
-      {/* Invoice Modal */}
       {invoiceRide && (
         <InvoiceModal
           ride={invoiceRide}
           onClose={() => setInvoiceRide(null)}
           onSuccess={() => {
             setInvoiceRide(null);
-            queryClient.invalidateQueries({ queryKey: ['admin', 'rides'] });
+            refresh();
+          }}
+        />
+      )}
+
+      {dispatchRide && (
+        <DispatchModal
+          ride={dispatchRide}
+          onClose={() => setDispatchRide(null)}
+          onSuccess={() => {
+            setDispatchRide(null);
+            refresh();
           }}
         />
       )}
@@ -263,7 +286,7 @@ export default function Rides() {
 }
 
 // ============================================================
-// INVOICE MODAL
+// INVOICE MODAL (existing)
 // ============================================================
 
 interface InvoiceModalProps {
@@ -282,7 +305,6 @@ function InvoiceModal({ ride, onClose, onSuccess }: InvoiceModalProps) {
   const subtotalCents = Math.round(parseFloat(subtotal || '0') * 100);
   const taxCents = Math.round(parseFloat(tax || '0') * 100);
   const totalCents = subtotalCents + taxCents;
-
   const currencySymbol =
     currency === 'INR' ? '₹' : currency === 'USD' ? '$' : currency + ' ';
 
@@ -298,7 +320,6 @@ function InvoiceModal({ ride, onClose, onSuccess }: InvoiceModalProps) {
 
     setLoading(true);
     setError('');
-
     try {
       await api.post(`/admin/rides/${ride.id}/invoice`, {
         subtotalCents,
@@ -407,6 +428,184 @@ function InvoiceModal({ ride, onClose, onSuccess }: InvoiceModalProps) {
             className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
           >
             {loading ? 'Sending...' : 'Send Invoice'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// DISPATCH MODAL (new)
+// ============================================================
+
+interface DispatchModalProps {
+  ride: Ride;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function DispatchModal({ ride, onClose, onSuccess }: DispatchModalProps) {
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['admin', 'available-drivers', ride.id],
+    queryFn: async () => {
+      const res = await api.get(`/drivers/available/${ride.id}`);
+      return res.data.data as AvailableDriver[];
+    },
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: ({
+      driverId,
+      vehicleId,
+    }: {
+      driverId: string;
+      vehicleId: string;
+    }) =>
+      api.post(`/drivers/assign/${ride.id}`, {
+        driverId,
+        vehicleId,
+      }),
+    onSuccess: () => onSuccess(),
+    onError: (err: any) => {
+      setError(err.response?.data?.message || 'Failed to assign driver');
+      setAssigningId(null);
+    },
+  });
+
+  const handleAssign = (driver: AvailableDriver) => {
+    if (driver.vehicles.length === 0) {
+      setError('This driver has no active vehicle');
+      return;
+    }
+    setError('');
+    setAssigningId(driver.id);
+    assignMutation.mutate({
+      driverId: driver.id,
+      vehicleId: driver.vehicles[0].id,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="px-6 py-5 border-b border-slate-100 flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Assign Driver</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              {ride.customer.user.fullName} ·{' '}
+              {new Date(ride.scheduledAt).toLocaleString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 text-xs text-slate-600">
+          <div className="truncate">
+            <span className="text-emerald-600">●</span> {ride.pickupAddress}
+          </div>
+          <div className="truncate">
+            <span className="text-red-600">●</span> {ride.dropoffAddress}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto p-6">
+          {isLoading && (
+            <p className="text-sm text-slate-500 text-center py-8">
+              Loading available drivers...
+            </p>
+          )}
+
+          {isError && (
+            <p className="text-sm text-red-600 text-center py-8">
+              Failed to load available drivers
+            </p>
+          )}
+
+          {!isLoading && !isError && data?.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-sm text-slate-500">
+                No drivers available for this time slot.
+              </p>
+              <p className="text-xs text-slate-400 mt-2">
+                All drivers may be busy or unavailable. Try a different time or
+                add more drivers.
+              </p>
+            </div>
+          )}
+
+          {!isLoading && data && data.length > 0 && (
+            <div className="space-y-3">
+              {data.map((driver) => (
+                <div
+                  key={driver.id}
+                  className="border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="font-semibold text-slate-900">
+                        {driver.user.fullName}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        {driver.user.phone}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        License: {driver.licenseNo} · Rating: {driver.ratingAvg.toFixed(1)} ⭐
+                        {' · '}
+                        {driver.totalTrips} trips
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleAssign(driver)}
+                      disabled={assigningId !== null}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50"
+                    >
+                      {assigningId === driver.id ? 'Assigning...' : 'Assign'}
+                    </button>
+                  </div>
+
+                  {driver.vehicles.map((v) => (
+                    <div
+                      key={v.id}
+                      className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600"
+                    >
+                      🚗 {v.make} {v.model} · {v.color} · <span className="font-mono">{v.plateNo}</span>
+                      {' · '}
+                      {v.capacity} seats · {v.luggageCapacity} bags
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-4 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
+          <button
+            onClick={onClose}
+            disabled={assigningId !== null}
+            className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg"
+          >
+            Close
           </button>
         </div>
       </div>

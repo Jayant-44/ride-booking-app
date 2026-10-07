@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Rides from './pages/Rides';
+import Drivers from './pages/Drivers';
 import Layout from './components/Layout';
 
 function RequireAdmin({ children }: { children: React.ReactNode }) {
@@ -24,6 +25,7 @@ export default function App() {
         >
           <Route index element={<Navigate to="/rides" replace />} />
           <Route path="rides" element={<Rides />} />
+          <Route path="drivers" element={<Drivers />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

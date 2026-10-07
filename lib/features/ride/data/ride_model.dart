@@ -9,6 +9,8 @@ class Ride {
   final String? vehicleType;
   final String? notes;
   final DateTime createdAt;
+  final AssignedDriver? assignedDriver;
+  final AssignedVehicle? assignedVehicle;
 
   const Ride({
     required this.id,
@@ -21,7 +23,25 @@ class Ride {
     this.vehicleType,
     this.notes,
     required this.createdAt,
+    this.assignedDriver,
+    this.assignedVehicle,
   });
+
+  static AssignedDriver? _parseAssignedDriver(dynamic assignments) {
+    if (assignments is! List || assignments.isEmpty) return null;
+    final first = assignments.first as Map<String, dynamic>;
+    final driver = first['driver'] as Map<String, dynamic>?;
+    if (driver == null) return null;
+    return AssignedDriver.fromJson(driver);
+  }
+
+  static AssignedVehicle? _parseAssignedVehicle(dynamic assignments) {
+    if (assignments is! List || assignments.isEmpty) return null;
+    final first = assignments.first as Map<String, dynamic>;
+    final vehicle = first['vehicle'] as Map<String, dynamic>?;
+    if (vehicle == null) return null;
+    return AssignedVehicle.fromJson(vehicle);
+  }
 
   factory Ride.fromJson(Map<String, dynamic> json) => Ride(
         id: json['id'] as String,
@@ -34,6 +54,8 @@ class Ride {
         vehicleType: json['vehicleType'] as String?,
         notes: json['notes'] as String?,
         createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
+        assignedDriver: _parseAssignedDriver(json['assignments']),
+        assignedVehicle: _parseAssignedVehicle(json['assignments']),
       );
 
   String get statusLabel {
@@ -73,4 +95,52 @@ class Ride {
         return status;
     }
   }
+}
+
+class AssignedDriver {
+  final String id;
+  final String fullName;
+  final String phone;
+
+  const AssignedDriver({
+    required this.id,
+    required this.fullName,
+    required this.phone,
+  });
+
+  factory AssignedDriver.fromJson(Map<String, dynamic> json) => AssignedDriver(
+        id: json['id'] as String,
+        fullName: (json['user'] as Map<String, dynamic>)['fullName'] as String,
+        phone: (json['user'] as Map<String, dynamic>)['phone'] as String,
+      );
+}
+
+class AssignedVehicle {
+  final String id;
+  final String make;
+  final String model;
+  final String plateNo;
+  final String color;
+  final int capacity;
+
+  const AssignedVehicle({
+    required this.id,
+    required this.make,
+    required this.model,
+    required this.plateNo,
+    required this.color,
+    required this.capacity,
+  });
+
+  String get displayName => '$make $model';
+
+  factory AssignedVehicle.fromJson(Map<String, dynamic> json) =>
+      AssignedVehicle(
+        id: json['id'] as String,
+        make: json['make'] as String,
+        model: json['model'] as String,
+        plateNo: json['plateNo'] as String,
+        color: json['color'] as String,
+        capacity: json['capacity'] as int,
+      );
 }

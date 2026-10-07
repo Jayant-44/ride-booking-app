@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/data/auth_service.dart';
@@ -19,8 +20,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   User? _user;
   List<Ride> _rides = [];
-  bool _loading = true;
   List<Invoice> _invoices = [];
+  bool _loading = true;
 
   @override
   void initState() {
@@ -234,7 +235,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     if (_payableInvoice != null) ...[
                       _PaymentDueCard(
                         invoice: _payableInvoice!,
-                        onTap: () => context.go('/invoice/${_payableInvoice!.id}'),
+                        onTap: () =>
+                            context.go('/invoice/${_payableInvoice!.id}'),
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -687,6 +689,14 @@ class _RideCard extends StatelessWidget {
     if (ride.status == 'COMPLETED' || ride.status == 'REVIEWED') {
       return const Color(0xFF10B981);
     }
+    if (ride.status == 'DRIVER_ASSIGNED' ||
+        ride.status == 'EN_ROUTE' ||
+        ride.status == 'ARRIVED') {
+      return const Color(0xFF0EA5E9);
+    }
+    if (ride.status == 'IN_PROGRESS') {
+      return const Color(0xFF06B6D4);
+    }
     return const Color(0xFFF59E0B);
   }
 
@@ -695,6 +705,32 @@ class _RideCard extends StatelessWidget {
     final h = d.hour.toString().padLeft(2, '0');
     final m = d.minute.toString().padLeft(2, '0');
     return '${d.day}/${d.month}/${d.year} • $h:$m';
+  }
+
+  bool get _hasDriver =>
+      ride.assignedDriver != null && ride.assignedVehicle != null;
+
+  Future<void> _callDriver(BuildContext context) async {
+    final phone = ride.assignedDriver!.phone;
+    final uri = Uri(scheme: 'tel', path: phone);
+
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Cannot open dialer for $phone')),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cannot open dialer: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -746,6 +782,7 @@ class _RideCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+
           _RouteLine(
             icon: Icons.my_location_rounded,
             color: const Color(0xFF10B981),
@@ -764,6 +801,80 @@ class _RideCard extends StatelessWidget {
             color: AppTheme.error,
             text: ride.dropoffAddress,
           ),
+
+          if (_hasDriver) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(height: 1),
+            ),
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.person_rounded,
+                    color: AppTheme.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ride.assignedDriver!.fullName,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${ride.assignedVehicle!.displayName} · ${ride.assignedVehicle!.plateNo}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Material(
+                  color: const Color(0xFF10B981),
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => _callDriver(context),
+                    child: const Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        children: [
+                          Icon(Icons.phone_rounded,
+                              color: Colors.white, size: 16),
+                          SizedBox(width: 6),
+                          Text(
+                            'Call',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
