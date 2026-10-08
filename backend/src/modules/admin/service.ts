@@ -140,7 +140,8 @@ export const AdminService = {
 
     return { total, pending, confirmed, completed };
   },
-    async createInvoiceForRide(
+
+  async createInvoiceForRide(
     adminId: string,
     rideId: string,
     input: { subtotalCents: number; taxCents: number; currencyCode: string }
@@ -193,6 +194,126 @@ export const AdminService = {
       });
 
       return invoice;
+    });
+  },
+
+  // ============================================================
+  // USER APPROVALS (drivers & admins)
+  // ============================================================
+
+  async listPendingUsers(role?: 'DRIVER' | 'ADMIN') {
+    return prisma.user.findMany({
+      where: {
+        status: 'PENDING',
+        ...(role ? { role } : { role: { in: ['DRIVER', 'ADMIN'] } }),
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        fullName: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        driver: {
+          select: {
+            licenseNo: true,
+            licenseExpiry: true,
+            vehicles: true,
+          },
+        },
+      },
+    });
+  },
+
+  async approveUser(
+    adminId: string,
+    targetUserId: string,
+    adminIsSuperAdmin: boolean
+  ) {
+    const user = await prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+    if (!user) throw new Error('USER_NOT_FOUND');
+
+    if (user.status !== 'PENDING') {
+      throw new Error('USER_NOT_PENDING');
+    }
+
+    if (user.role === 'ADMIN' && !adminIsSuperAdmin) {
+      throw new Error('SUPER_ADMIN_REQUIRED');
+    }
+
+    const { generateUniqueId } = await import('../auth/service.js');
+    const prefix = user.role === 'DRIVER' ? 'DRV' : 'ADM';
+    const uniqueId = await generateUniqueId(prefix);
+
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: targetUserId },
+        data: {
+          status: 'ACTIVE',
+          uniqueId,
+          approvedBy: adminId,
+          approvedAt: new Date(),
+        },
+        select: {
+          id: true,
+          email: true,
+          phone: true,
+          fullName: true,
+          role: true,
+          status: true,
+          uniqueId: true,
+        },
+      });
+
+      if (user.role === 'DRIVER') {
+        await tx.driver.update({
+          where: { userId: targetUserId },
+          data: { status: 'ACTIVE', isAvailable: true },
+        });
+
+        await tx.vehicle.updateMany({
+          where: { driver: { userId: targetUserId } },
+          data: { active: true },
+        });
+      }
+
+      return updated;
+    });
+  },
+
+  async rejectUser(
+    adminId: string,
+    targetUserId: string,
+    reason?: string,
+    adminIsSuperAdmin?: boolean
+  ) {
+    const user = await prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+    if (!user) throw new Error('USER_NOT_FOUND');
+
+    if (user.role === 'ADMIN' && !adminIsSuperAdmin) {
+      throw new Error('SUPER_ADMIN_REQUIRED');
+    }
+
+    return prisma.user.update({
+      where: { id: targetUserId },
+      data: {
+        status: 'SUSPENDED',
+        approvedBy: adminId,
+        approvedAt: new Date(),
+      },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        status: true,
+      },
     });
   },
 };

@@ -23,6 +23,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<Invoice> _invoices = [];
   bool _loading = true;
 
+  static const _activeStatuses = {
+    'DRIVER_ASSIGNED',
+    'EN_ROUTE',
+    'ARRIVED',
+    'IN_PROGRESS',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -38,9 +45,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _loadData();
-    }
+    if (state == AppLifecycleState.resumed) _loadData();
   }
 
   Future<void> _loadData() async {
@@ -61,6 +66,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Invoice? get _payableInvoice {
     try {
       return _invoices.firstWhere((inv) => inv.isPayable);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Ride? get _activeRide {
+    try {
+      return _rides.firstWhere((r) => _activeStatuses.contains(r.status));
     } catch (_) {
       return null;
     }
@@ -92,6 +105,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -112,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         top: false,
         child: RefreshIndicator(
           onRefresh: _loadData,
+          color: AppTheme.primary,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
@@ -119,14 +140,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             slivers: [
               // ==================== HEADER ====================
               SliverAppBar(
-                expandedHeight: 78,
+                expandedHeight: 130,
                 pinned: true,
                 elevation: 0,
                 backgroundColor: AppTheme.primary,
                 actions: [
                   IconButton(
                     onPressed: _logout,
-                    icon: const Icon(Icons.logout, color: Colors.white),
+                    icon: const Icon(Icons.logout_rounded, color: Colors.white),
                     tooltip: 'Logout',
                   ),
                   const SizedBox(width: 8),
@@ -135,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   background: Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [AppTheme.primary, Color(0xFF3B5BC4)],
+                        colors: [Color(0xFF1E3A8A), Color(0xFF3B5BC4)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -143,76 +164,92 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
+                        // Decorative circles
                         Positioned(
-                          top: -30,
-                          right: -30,
+                          top: -50,
+                          right: -60,
                           child: Container(
-                            width: 130,
-                            height: 130,
+                            width: 180,
+                            height: 180,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.white.withValues(alpha: 0.08),
+                              color: Colors.white.withValues(alpha: 0.07),
                             ),
                           ),
                         ),
                         Positioned(
-                          bottom: -50,
-                          left: -40,
+                          bottom: -80,
+                          left: -50,
                           child: Container(
-                            width: 150,
-                            height: 150,
+                            width: 200,
+                            height: 200,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.white.withValues(alpha: 0.05),
+                              color: Colors.white.withValues(alpha: 0.04),
                             ),
                           ),
                         ),
                         Positioned(
-                          left: 16,
-                          right: 16,
-                          bottom: 10,
+                          top: 30,
+                          left: 130,
+                          child: Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.06),
+                            ),
+                          ),
+                        ),
+                        // Greeting
+                        Positioned(
+                          left: 20,
+                          right: 20,
+                          bottom: 16,
                           child: Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(2),
+                                padding: const EdgeInsets.all(2.5),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.25),
+                                  color: Colors.white.withValues(alpha: 0.28),
                                 ),
                                 child: CircleAvatar(
-                                  radius: 18,
+                                  radius: 22,
                                   backgroundColor: Colors.white,
                                   child: Text(
                                     initials,
                                     style: TextStyle(
                                       color: AppTheme.primary,
-                                      fontSize: 13,
+                                      fontSize: 15,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      'Welcome back,',
+                                      _greeting,
                                       style: TextStyle(
                                         color: Colors.white
-                                            .withValues(alpha: 0.8),
-                                        fontSize: 10,
+                                            .withValues(alpha: 0.82),
+                                        fontSize: 12,
+                                        letterSpacing: 0.2,
                                       ),
                                     ),
+                                    const SizedBox(height: 2),
                                     Text(
                                       firstName,
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 17,
+                                        fontSize: 22,
                                         fontWeight: FontWeight.bold,
-                                        letterSpacing: -0.2,
+                                        letterSpacing: -0.3,
                                       ),
                                     ),
                                   ],
@@ -229,9 +266,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
               // ==================== BODY ====================
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
+                    // ---------- ACTIVE RIDE (if any) ----------
+                    if (_activeRide != null) ...[
+                      _ActiveRideCard(ride: _activeRide!),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // ---------- PAYMENT DUE ----------
                     if (_payableInvoice != null) ...[
                       _PaymentDueCard(
                         invoice: _payableInvoice!,
@@ -240,14 +284,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                       const SizedBox(height: 16),
                     ],
-                    _BookRideCard(onTap: () => context.go('/request-ride')),
+
+                    // ---------- BOOK A RIDE ----------
+                    _BookRideCard(
+                      onTap: () => context.go('/request-ride'),
+                    ),
                     const SizedBox(height: 24),
 
+                    // ---------- STATS ----------
                     Row(
                       children: [
                         Expanded(
                           child: _StatCard(
-                            icon: Icons.local_taxi_outlined,
+                            icon: Icons.local_taxi_rounded,
                             label: 'Rides',
                             value: _rides.length.toString(),
                             color: const Color(0xFF3B5BC4),
@@ -256,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         const SizedBox(width: 12),
                         const Expanded(
                           child: _StatCard(
-                            icon: Icons.star_outline_rounded,
+                            icon: Icons.star_rounded,
                             label: 'Rating',
                             value: '—',
                             color: Color(0xFFF59E0B),
@@ -265,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         const SizedBox(width: 12),
                         const Expanded(
                           child: _StatCard(
-                            icon: Icons.account_balance_wallet_outlined,
+                            icon: Icons.account_balance_wallet_rounded,
                             label: 'Spent',
                             value: '₹0',
                             color: Color(0xFF10B981),
@@ -275,8 +324,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
 
                     const SizedBox(height: 28),
+
+                    // ---------- UPCOMING RIDES ----------
                     _SectionHeader(
                       title: 'Upcoming Rides',
+                      icon: Icons.event_note_rounded,
                       actionLabel: 'See all',
                       onAction: () {},
                     ),
@@ -284,7 +336,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                     if (_rides.isEmpty)
                       const _EmptyStateCard(
-                        icon: Icons.event_available_outlined,
+                        icon: Icons.event_available_rounded,
                         title: 'No upcoming rides',
                         subtitle: 'Book your first ride to get started',
                       )
@@ -295,48 +347,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           )),
 
                     const SizedBox(height: 28),
-                    const _SectionHeader(title: 'Quick Actions'),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _QuickActionTile(
-                            icon: Icons.history_rounded,
-                            label: 'History',
-                            color: const Color(0xFF8B5CF6),
-                            onTap: () {},
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _QuickActionTile(
-                            icon: Icons.person_outline_rounded,
-                            label: 'Profile',
-                            color: const Color(0xFF06B6D4),
-                            onTap: () {},
-                          ),
-                        ),
-                      ],
+
+                    // ---------- QUICK ACTIONS ----------
+                    const _SectionHeader(
+                      title: 'Quick Actions',
+                      icon: Icons.grid_view_rounded,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: _QuickActionTile(
-                            icon: Icons.support_agent_rounded,
-                            label: 'Support',
-                            color: const Color(0xFFF97316),
-                            onTap: () {},
-                          ),
+                        _QuickAction(
+                          icon: Icons.history_rounded,
+                          label: 'History',
+                          color: const Color(0xFF8B5CF6),
+                          onTap: () {},
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _QuickActionTile(
-                            icon: Icons.settings_outlined,
-                            label: 'Settings',
-                            color: const Color(0xFF64748B),
-                            onTap: () {},
-                          ),
+                        _QuickAction(
+                          icon: Icons.person_rounded,
+                          label: 'Profile',
+                          color: const Color(0xFF06B6D4),
+                          onTap: () {},
+                        ),
+                        _QuickAction(
+                          icon: Icons.support_agent_rounded,
+                          label: 'Support',
+                          color: const Color(0xFFF97316),
+                          onTap: () {},
+                        ),
+                        _QuickAction(
+                          icon: Icons.settings_rounded,
+                          label: 'Settings',
+                          color: const Color(0xFF64748B),
+                          onTap: () {},
                         ),
                       ],
                     ),
@@ -355,6 +398,196 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 // WIDGETS
 // ============================================================
 
+// ---------- ACTIVE RIDE HERO ----------
+class _ActiveRideCard extends StatelessWidget {
+  final Ride ride;
+  const _ActiveRideCard({required this.ride});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0EA5E9), Color(0xFF06B6D4)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0EA5E9).withValues(alpha: 0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'ACTIVE RIDE',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  ride.statusLabel,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Route
+          _WhiteRouteLine(
+            icon: Icons.my_location_rounded,
+            text: ride.pickupAddress,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: Container(
+              width: 2,
+              height: 14,
+              color: Colors.white.withValues(alpha: 0.4),
+            ),
+          ),
+          _WhiteRouteLine(
+            icon: Icons.location_on_rounded,
+            text: ride.dropoffAddress,
+          ),
+
+          // Driver info
+          if (ride.assignedDriver != null && ride.assignedVehicle != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.person_rounded,
+                      color: Color(0xFF0EA5E9),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          ride.assignedDriver!.fullName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${ride.assignedVehicle!.displayName} · ${ride.assignedVehicle!.plateNo}',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _handleCall(context, ride.assignedDriver!),
+                      child: const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: Icon(
+                          Icons.phone_rounded,
+                          color: Color(0xFF0EA5E9),
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WhiteRouteLine extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _WhiteRouteLine({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.white),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------- BOOK A RIDE HERO ----------
 class _BookRideCard extends StatelessWidget {
   final VoidCallback onTap;
   const _BookRideCard({required this.onTap});
@@ -365,47 +598,47 @@ class _BookRideCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         child: Ink(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
           child: Row(
             children: [
               Container(
-                width: 58,
-                height: 58,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [AppTheme.primary, Color(0xFF3B5BC4)],
+                    colors: [Color(0xFF1E3A8A), Color(0xFF3B5BC4)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(18),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.primary.withValues(alpha: 0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+                      color: AppTheme.primary.withValues(alpha: 0.35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
                 child: const Icon(
                   Icons.directions_car_filled_rounded,
                   color: Colors.white,
-                  size: 28,
+                  size: 32,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 18),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,9 +646,9 @@ class _BookRideCard extends StatelessWidget {
                     Text(
                       'Book a Ride',
                       style: TextStyle(
-                        fontSize: 17,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        letterSpacing: -0.2,
+                        letterSpacing: -0.3,
                       ),
                     ),
                     SizedBox(height: 4),
@@ -427,14 +660,14 @@ class _BookRideCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: AppTheme.primary.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.arrow_forward_rounded,
-                  size: 18,
+                  size: 20,
                   color: AppTheme.primary,
                 ),
               ),
@@ -446,6 +679,7 @@ class _BookRideCard extends StatelessWidget {
   }
 }
 
+// ---------- STAT CARD ----------
 class _StatCard extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -508,13 +742,16 @@ class _StatCard extends StatelessWidget {
   }
 }
 
+// ---------- SECTION HEADER ----------
 class _SectionHeader extends StatelessWidget {
   final String title;
+  final IconData? icon;
   final String? actionLabel;
   final VoidCallback? onAction;
 
   const _SectionHeader({
     required this.title,
+    this.icon,
     this.actionLabel,
     this.onAction,
   });
@@ -522,14 +759,19 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-            letterSpacing: -0.2,
+        if (icon != null) ...[
+          Icon(icon, size: 18, color: AppTheme.primary),
+          const SizedBox(width: 8),
+        ],
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.2,
+            ),
           ),
         ),
         if (actionLabel != null)
@@ -550,7 +792,7 @@ class _SectionHeader extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                Icon(
+                const Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 11,
                   color: AppTheme.primary,
@@ -563,6 +805,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+// ---------- EMPTY STATE ----------
 class _EmptyStateCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -617,13 +860,14 @@ class _EmptyStateCard extends StatelessWidget {
   }
 }
 
-class _QuickActionTile extends StatelessWidget {
+// ---------- QUICK ACTION (circular) ----------
+class _QuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
 
-  const _QuickActionTile({
+  const _QuickAction({
     required this.icon,
     required this.label,
     required this.color,
@@ -637,37 +881,27 @@ class _QuickActionTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: Ink(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(9),
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(11),
+                  borderRadius: BorderRadius.circular(18),
                 ),
-                child: Icon(icon, color: color, size: 20),
+                child: Icon(icon, color: color, size: 26),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF334155),
                 ),
               ),
             ],
@@ -678,6 +912,7 @@ class _QuickActionTile extends StatelessWidget {
   }
 }
 
+// ---------- RIDE CARD ----------
 class _RideCard extends StatelessWidget {
   final Ride ride;
   const _RideCard({required this.ride});
@@ -709,29 +944,6 @@ class _RideCard extends StatelessWidget {
 
   bool get _hasDriver =>
       ride.assignedDriver != null && ride.assignedVehicle != null;
-
-  Future<void> _callDriver(BuildContext context) async {
-    final phone = ride.assignedDriver!.phone;
-    final uri = Uri(scheme: 'tel', path: phone);
-
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Cannot open dialer for $phone')),
-          );
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cannot open dialer: $e')),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -782,7 +994,6 @@ class _RideCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-
           _RouteLine(
             icon: Icons.my_location_rounded,
             color: const Color(0xFF10B981),
@@ -801,7 +1012,6 @@ class _RideCard extends StatelessWidget {
             color: AppTheme.error,
             text: ride.dropoffAddress,
           ),
-
           if (_hasDriver) ...[
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
@@ -850,7 +1060,7 @@ class _RideCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
-                    onTap: () => _callDriver(context),
+                    onTap: () => _handleCall(context, ride.assignedDriver!),
                     child: const Padding(
                       padding:
                           EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -914,6 +1124,7 @@ class _RouteLine extends StatelessWidget {
   }
 }
 
+// ---------- PAYMENT DUE ----------
 class _PaymentDueCard extends StatelessWidget {
   final Invoice invoice;
   final VoidCallback onTap;
@@ -991,6 +1202,56 @@ class _PaymentDueCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// CALL HANDLER (shared)
+// ============================================================
+
+Future<void> _handleCall(BuildContext context, AssignedDriver driver) async {
+  final phone = driver.phone;
+  final uri = Uri(scheme: 'tel', path: phone);
+
+  try {
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched) throw Exception('Dialer not available');
+  } catch (_) {
+    if (!context.mounted) return;
+    // Fallback: show phone number in a dialog
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Call ${driver.fullName}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Could not open the dialer. The driver\'s number is:',
+              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            ),
+            const SizedBox(height: 12),
+            SelectableText(
+              phone,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }

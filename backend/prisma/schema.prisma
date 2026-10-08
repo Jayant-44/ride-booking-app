@@ -69,24 +69,30 @@ enum AssignmentStatus {
 // ============================================
 
 model User {
-  id        String     @id @default(cuid())
-  role      Role
-  email     String     @unique
-  phone     String
-  fullName  String
-  password  String
-  status    UserStatus @default(ACTIVE)
-  timezone  String     @default("UTC")
-  currency  String     @default("USD")
-  locale    String     @default("en")
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id           String     @id @default(cuid())
+  role         Role
+  email        String     @unique
+  phone        String     @unique
+  fullName     String
+  password     String
+  status       UserStatus @default(ACTIVE)
+  uniqueId     String?    @unique
+  isSuperAdmin Boolean    @default(false)
+  approvedBy   String?
+  approvedAt   DateTime?
+  timezone     String     @default("UTC")
+  currency     String     @default("USD")
+  locale       String     @default("en")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   customer Customer?
   driver   Driver?
 
   @@index([email])
   @@index([role])
+  @@index([status])
+  @@index([uniqueId])
 }
 
 model Customer {

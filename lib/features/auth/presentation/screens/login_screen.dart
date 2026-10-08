@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:ride_booking/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../../core/theme/app_theme.dart';
 import '../../data/auth_service.dart';
+
+enum LoginRole { customer, driver, admin }
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,131 +15,358 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();
+  final _identifierCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _uniqueIdCtrl = TextEditingController();
+
+  LoginRole _role = LoginRole.customer;
   bool _loading = false;
   bool _obscure = true;
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _identifierCtrl.dispose();
     _passwordCtrl.dispose();
+    _uniqueIdCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _submit() async {
-  if (!_formKey.currentState!.validate()) return;
-  setState(() => _loading = true);
+  bool get _needsUniqueId => _role != LoginRole.customer;
 
-  final result = await AuthService().login(
-    _emailCtrl.text.trim(),
-    _passwordCtrl.text,
-  );
-
-  if (!mounted) return;
-  setState(() => _loading = false);
-
-  if (result.success) {
-    // Show success + navigate
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Welcome, ${result.user!.fullName}')),
-    );
-    context.go('/home');
-  } else {
-    // Show error
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result.error ?? 'Login failed'),
-        backgroundColor: Colors.red,
-      ),
-    );
+  String get _registerRoute {
+    switch (_role) {
+      case LoginRole.customer:
+        return '/register';
+      case LoginRole.driver:
+        return '/register-driver';
+      case LoginRole.admin:
+        return '/register-admin';
+    }
   }
-}
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
+
+    final result = await AuthService().login(
+      identifier: _identifierCtrl.text.trim(),
+      password: _passwordCtrl.text,
+      uniqueId: _needsUniqueId ? _uniqueIdCtrl.text.trim() : null,
+    );
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    if (!result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error ?? 'Login failed'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+      return;
+    }
+
+    // Role-based routing
+    switch (result.user!.role) {
+      case 'DRIVER':
+        context.go('/driver/home');
+        break;
+      case 'ADMIN':
+        // Admins use the web dashboard, but if they log in here:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please use the web admin dashboard'),
+          ),
+        );
+        context.go('/home');
+        break;
+      default:
+        context.go('/home');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 40),
-                  Text(
-                    l10n.welcomeBack,
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  // ---------- LOGO ----------
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppTheme.primary, Color(0xFF3B5BC4)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primary.withValues(alpha: 0.3),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.directions_car_filled_rounded,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(l10n.signInSubtitle, style: const TextStyle(color: Colors.grey)),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 24),
+
+                  const Text(
+                    'Welcome back',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Sign in to continue',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // ---------- ROLE TABS ----------
+                  _RoleTabs(
+                    selected: _role,
+                    onChanged: (r) => setState(() => _role = r),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // ---------- IDENTIFIER ----------
                   TextFormField(
-                    controller: _emailCtrl,
+                    controller: _identifierCtrl,
                     keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    autocorrect: false,
                     decoration: InputDecoration(
-                      labelText: l10n.email,
-                      prefixIcon: const Icon(Icons.email_outlined),
+                      labelText: 'Email or Phone',
+                      hintText: 'you@example.com or +91...',
+                      prefixIcon: const Icon(Icons.person_outline_rounded),
                     ),
                     validator: (v) {
-                      if (v == null || v.isEmpty) return l10n.emailRequired;
-                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
-                        return l10n.emailInvalid;
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Email or phone is required';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
+
+                  // ---------- UNIQUE ID (Driver/Admin only) ----------
+                  if (_needsUniqueId) ...[
+                    TextFormField(
+                      controller: _uniqueIdCtrl,
+                      textInputAction: TextInputAction.next,
+                      autocorrect: false,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        labelText: '${_role == LoginRole.driver ? "Driver" : "Admin"} ID',
+                        hintText: 'e.g. ${_role == LoginRole.driver ? "DRV-XXXX" : "ADM-XXXX"}',
+                        prefixIcon: const Icon(Icons.badge_outlined),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return '${_role == LoginRole.driver ? "Driver" : "Admin"} ID is required';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // ---------- PASSWORD ----------
                   TextFormField(
                     controller: _passwordCtrl,
                     obscureText: _obscure,
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
-                      labelText: l10n.password,
-                      prefixIcon: const Icon(Icons.lock_outline),
+                      labelText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                        icon: Icon(
+                          _obscure
+                              ? Icons.visibility_off_rounded
+                              : Icons.visibility_rounded,
+                        ),
                         onPressed: () => setState(() => _obscure = !_obscure),
                       ),
                     ),
                     validator: (v) {
-                      if (v == null || v.isEmpty) return l10n.passwordRequired;
-                      if (v.length < 6) return l10n.passwordTooShort;
+                      if (v == null || v.isEmpty) return 'Password is required';
                       return null;
                     },
                   ),
-                  const SizedBox(height: 32),
+
+                  const SizedBox(height: 28),
+
+                  // ---------- SIGN IN BUTTON ----------
                   ElevatedButton(
                     onPressed: _loading ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 54),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     child: _loading
                         ? const SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 22,
+                            height: 22,
                             child: CircularProgressIndicator(
                               color: Colors.white,
-                              strokeWidth: 2,
+                              strokeWidth: 2.4,
                             ),
                           )
-                        : Text(l10n.signIn),
+                        : const Text(
+                            'Sign In',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(l10n.noAccount),
-                      TextButton(
-                        onPressed: () => context.go('/register'),
-                        child: Text(l10n.signUp),
+
+                  const SizedBox(height: 24),
+
+                  // ---------- SIGN UP LINK ----------
+                  if (_role != LoginRole.admin) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _role == LoginRole.customer
+                              ? "Don't have an account?"
+                              : "Want to drive with us?",
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => context.go(_registerRoute),
+                          style: TextButton.styleFrom(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 6),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            _role == LoginRole.customer ? 'Sign Up' : 'Apply',
+                            style: const TextStyle(
+                              color: AppTheme.primary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Text(
+                      'Admin accounts require super-admin approval',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 12,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// ROLE TABS
+// ============================================================
+
+class _RoleTabs extends StatelessWidget {
+  final LoginRole selected;
+  final ValueChanged<LoginRole> onChanged;
+
+  const _RoleTabs({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: LoginRole.values.map((role) {
+          final isSelected = role == selected;
+          final label = switch (role) {
+            LoginRole.customer => 'Customer',
+            LoginRole.driver => 'Driver',
+            LoginRole.admin => 'Admin',
+          };
+
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(role),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(9),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isSelected
+                        ? AppTheme.primary
+                        : Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

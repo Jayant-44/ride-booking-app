@@ -5,6 +5,8 @@ class User {
   final String phone;
   final String role;
   final String status;
+  final String? uniqueId;
+  final bool isSuperAdmin;
   final String timezone;
   final String currency;
   final String locale;
@@ -19,19 +21,9 @@ class User {
     required this.timezone,
     required this.currency,
     required this.locale,
+    this.uniqueId,
+    this.isSuperAdmin = false,
   });
-
-    Map<String, dynamic> toJson() => {
-        'id': id,
-        'email': email,
-        'fullName': fullName,
-        'phone': phone,
-        'role': role,
-        'status': status,
-        'timezone': timezone,
-        'currency': currency,
-        'locale': locale,
-      };
 
   factory User.fromJson(Map<String, dynamic> json) => User(
         id: json['id'] as String,
@@ -39,9 +31,25 @@ class User {
         fullName: json['fullName'] as String,
         phone: json['phone'] as String,
         role: json['role'] as String,
-        status: json['status'] as String,
+        status: json['status'] as String? ?? 'ACTIVE',
+        uniqueId: json['uniqueId'] as String?,
+        isSuperAdmin: json['isSuperAdmin'] as bool? ?? false,
         timezone: json['timezone'] as String? ?? 'UTC',
         currency: json['currency'] as String? ?? 'USD',
         locale: json['locale'] as String? ?? 'en',
       );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'email': email,
+        'fullName': fullName,
+        'phone': phone,
+        'role': role,
+        'status': status,
+        'uniqueId': uniqueId,
+        'isSuperAdmin': isSuperAdmin,
+        'timezone': timezone,
+        'currency': currency,
+        'locale': locale,
+      };
 }

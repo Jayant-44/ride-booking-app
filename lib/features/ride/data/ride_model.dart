@@ -80,7 +80,7 @@ class Ride {
       case 'DRIVER_ASSIGNED':
         return 'Driver Assigned';
       case 'EN_ROUTE':
-        return 'Driver En Route';
+        return 'Driver Assigned';
       case 'ARRIVED':
         return 'Driver Arrived';
       case 'IN_PROGRESS':

@@ -46,7 +46,7 @@ class RideService {
   'scheduledAt': scheduledAt.toUtc().toIso8601String(),
   'passengers': passengers,
   'luggageCount': luggageCount,
-  if (vehicleType case final v?) 'vehicleType': v,
+  'vehicleType': ?vehicleType,
   if (notes case final n? when n.isNotEmpty) 'notes': n,
 },
       );
@@ -83,7 +83,7 @@ class RideService {
     try {
       final response = await _dio.patch(
         '/rides/$rideId/cancel',
-        data: {if (reason != null) 'reason': reason},
+        data: {'reason': ?reason},
       );
       final ride = Ride.fromJson(response.data['data'] as Map<String, dynamic>);
       return RideResult.single(ride: ride);
