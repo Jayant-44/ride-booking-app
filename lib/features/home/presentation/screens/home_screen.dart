@@ -9,6 +9,7 @@ import '../../../ride/data/ride_model.dart';
 import '../../../ride/data/ride_service.dart';
 import '../../../invoice/data/invoice_model.dart';
 import '../../../invoice/data/invoice_service.dart';
+import '../../../../core/widgets/app_drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -128,6 +129,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
+      drawer: const AppDrawer(),
       body: SafeArea(
         top: false,
         child: RefreshIndicator(
@@ -144,6 +146,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 pinned: true,
                 elevation: 0,
                 backgroundColor: AppTheme.primary,
+                leading: Builder(
+                  builder: (ctx) => IconButton(
+                    icon: const Icon(Icons.menu_rounded, color: Colors.white),
+                    onPressed: () => Scaffold.of(ctx).openDrawer(),
+                  ),
+                ),
                 actions: [
                   IconButton(
                     onPressed: _logout,

@@ -79,7 +79,7 @@ class DriverRideInfo {
       case 'DRIVER_ASSIGNED':
         return 'Ready to Go';
       case 'EN_ROUTE':
-        return 'En Route';
+        return 'Driver Assigned';
       case 'ARRIVED':
         return 'Arrived';
       case 'IN_PROGRESS':

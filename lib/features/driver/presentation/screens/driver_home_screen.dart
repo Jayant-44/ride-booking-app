@@ -6,6 +6,7 @@ import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_model.dart';
 import '../../data/driver_models.dart';
 import '../../data/driver_service.dart';
+import '../../../../core/widgets/app_drawer.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -103,6 +104,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
+      drawer: const AppDrawer(),
       body: SafeArea(
         top: false,
         child: RefreshIndicator(
@@ -119,6 +121,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 pinned: true,
                 elevation: 0,
                 backgroundColor: const Color(0xFF0F172A),
+                leading: Builder(
+                  builder: (ctx) => IconButton(
+                    icon: const Icon(Icons.menu_rounded, color: Colors.white),
+                    onPressed: () => Scaffold.of(ctx).openDrawer(),
+                  ),
+                ),
                 actions: [
                   IconButton(
                     onPressed: _logout,

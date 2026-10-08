@@ -33,17 +33,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool get _needsUniqueId => _role != LoginRole.customer;
 
-  String get _registerRoute {
-    switch (_role) {
-      case LoginRole.customer:
-        return '/register';
-      case LoginRole.driver:
-        return '/register-driver';
-      case LoginRole.admin:
-        return '/register-admin';
-    }
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
@@ -72,14 +61,8 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'DRIVER':
         context.go('/driver/home');
         break;
-      case 'ADMIN':
-        // Admins use the web dashboard, but if they log in here:
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please use the web admin dashboard'),
-          ),
-        );
-        context.go('/home');
+        case 'ADMIN':
+        context.go('/admin/home');
         break;
       default:
         context.go('/home');
@@ -253,31 +236,57 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 24),
 
-                  // ---------- SIGN UP LINK ----------
-                  if (_role != LoginRole.admin) ...[
+                                    // ---------- SIGN UP / REGISTER LINKS ----------
+                  if (_role == LoginRole.customer) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          _role == LoginRole.customer
-                              ? "Don't have an account?"
-                              : "Want to drive with us?",
+                          "Don't have an account?",
                           style: TextStyle(
                             color: Colors.grey.shade700,
                             fontSize: 14,
                           ),
                         ),
                         TextButton(
-                          onPressed: () => context.go(_registerRoute),
+                          onPressed: () => context.go('/register'),
                           style: TextButton.styleFrom(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          child: Text(
-                            _role == LoginRole.customer ? 'Sign Up' : 'Apply',
-                            style: const TextStyle(
+                          child: const Text(
+                            'Sign Up',
+                            style: TextStyle(
+                              color: AppTheme.primary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else if (_role == LoginRole.driver) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Want to drive with us?",
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => context.go('/register-driver'),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'Apply',
+                            style: TextStyle(
                               color: AppTheme.primary,
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
@@ -287,13 +296,33 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ] else ...[
-                    Text(
-                      'Admin accounts require super-admin approval',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 12,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "New admin?",
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => context.go('/register-admin'),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'Apply',
+                            style: TextStyle(
+                              color: AppTheme.primary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ],

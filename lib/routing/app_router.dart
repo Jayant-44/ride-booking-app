@@ -9,6 +9,9 @@ import '../features/invoice/presentation/screens/invoice_detail_screen.dart';
 import '../features/ride/presentation/screens/ride_request_screen.dart';
 import '../features/driver/presentation/screens/driver_home_screen.dart';
 import '../features/driver/presentation/screens/driver_assignment_detail_screen.dart';
+import '../features/admin/presentation/screens/admin_home_screen.dart';
+import '../features/admin/presentation/screens/admin_rides_screen.dart';
+import '../features/admin/presentation/screens/admin_users_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/login',
@@ -52,6 +55,18 @@ final appRouter = GoRouter(
       builder: (context, state) => DriverAssignmentDetailScreen(
         assignmentId: state.pathParameters['id']!,
       ),
+    ),
+        GoRoute(
+      path: '/admin/home',
+      builder: (context, state) => const AdminHomeScreen(),
+    ),
+    GoRoute(
+      path: '/admin/rides',
+      builder: (context, state) => const AdminRidesScreen(),
+    ),
+    GoRoute(
+      path: '/admin/users',
+      builder: (context, state) => const AdminUsersScreen(),
     ),
   ],
 );
