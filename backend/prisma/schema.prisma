@@ -80,6 +80,7 @@ model User {
   isSuperAdmin Boolean    @default(false)
   approvedBy   String?
   approvedAt   DateTime?
+  fcmToken     String?
   timezone     String     @default("UTC")
   currency     String     @default("USD")
   locale       String     @default("en")

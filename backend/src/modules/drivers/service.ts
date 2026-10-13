@@ -177,6 +177,27 @@ export const DriverService = {
         },
       });
 
+            // Send push notification to the driver
+      const driverUser = await tx.user.findUnique({
+        where: { id: assignment.driver.userId ?? '' },
+        select: { id: true },
+      });
+
+      const customer = await tx.customer.findUnique({
+        where: { id: ride.customerId },
+        include: { user: { select: { fullName: true } } },
+      });
+
+      // Fire-and-forget — don't block the response
+      if (driverUser) {
+        import('../notifications/service.js').then(({ NotificationService }) => {
+          NotificationService.notifyDriverOfOffer(
+            driverUser.id,
+            customer?.user.fullName ?? 'A customer'
+          ).catch(() => {});
+        });
+      }
+
       return assignment;
     });
   },

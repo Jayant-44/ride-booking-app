@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../../core/services/notification_service.dart';
 
 import '../../../core/config/api_client.dart';
 import 'user_model.dart';
+import 'dart:async';
 
 class AuthResult {
   final bool success;
@@ -271,13 +273,16 @@ class AuthService {
   // ============================================================
   // HELPERS
   // ============================================================
-  Future<AuthResult> _handleAuthResponse(Response response) async {
+    Future<AuthResult> _handleAuthResponse(Response response) async {
     final data = response.data['data'];
     final token = data['token'] as String;
     final user = User.fromJson(data['user'] as Map<String, dynamic>);
 
     await _storage.write(key: 'jwt_token', value: token);
     await _storage.write(key: 'user_json', value: jsonEncode(user.toJson()));
+
+    // Best-effort: register FCM token
+    unawaited(registerFcmToken());
 
     return AuthResult.success(user: user, token: token);
   }
@@ -289,6 +294,7 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    await unregisterFcmToken();
     await _storage.delete(key: 'jwt_token');
     await _storage.delete(key: 'user_role');
     await _storage.delete(key: 'user_json');
@@ -298,4 +304,22 @@ class AuthService {
     final token = await _storage.read(key: 'jwt_token');
     return token != null;
   }
+
+  Future<void> registerFcmToken() async {
+    try {
+      final token = await NotificationService().getToken();
+      if (token == null) return;
+      await _dio.post(
+        '/notifications/register-token',
+        data: {'token': token},
+      );
+    } catch (_) {}
+  }
+
+  Future<void> unregisterFcmToken() async {
+    try {
+      await _dio.post('/notifications/unregister-token');
+    } catch (_) {}
+  }
+
 }

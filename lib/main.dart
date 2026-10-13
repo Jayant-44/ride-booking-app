@@ -1,13 +1,26 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'l10n/app_localizations.dart';
+
+import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
+import 'l10n/app_localizations.dart';
 import 'routing/app_router.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
+
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    await NotificationService().initialize();
+  } catch (e) {
+    debugPrint('[main] Firebase init failed: $e');
+  }
+
   runApp(const RideBookingApp());
 }
 
@@ -21,7 +34,7 @@ class RideBookingApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: appRouter,
-      localizationsDelegates: [
+      localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

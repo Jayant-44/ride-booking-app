@@ -16,8 +16,10 @@ import '../features/profile/presentation/screens/profile_screen.dart';
 import '../features/profile/presentation/screens/settings_screen.dart';
 import '../features/history/presentation/screens/history_screen.dart';
 import '../features/support/presentation/screens/support_screen.dart';
+import '../core/navigation/nav_key.dart';
 
 final appRouter = GoRouter(
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/login',
   routes: [
     // Auth

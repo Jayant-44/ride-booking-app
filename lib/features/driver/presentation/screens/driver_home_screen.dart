@@ -52,32 +52,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     }
   }
 
-  Future<void> _logout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      await AuthService().logout();
-      if (mounted) context.go('/login');
-    }
-  }
-
   List<DriverAssignment> get _offers =>
       _assignments.where((a) => a.isOffered).toList();
 
