@@ -57,13 +57,6 @@ class _AppDrawerState extends State<AppDrawer> {
     context.go(path);
   }
 
-  void _showComingSoon(String feature) {
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature — coming soon')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final user = _user;
@@ -180,42 +173,42 @@ class _AppDrawerState extends State<AppDrawer> {
                       label: 'Pending Users',
                       onTap: () => _go('/admin/users'),
                     ),
-                    const Divider(height: 24, indent: 20, endIndent: 20),
                   ] else if (isDriver) ...[
                     _DrawerItem(
                       icon: Icons.dashboard_rounded,
                       label: 'Driver Home',
                       onTap: () => _go('/driver/home'),
                     ),
-                    const Divider(height: 24, indent: 20, endIndent: 20),
                   ] else ...[
                     _DrawerItem(
                       icon: Icons.home_rounded,
                       label: 'Home',
                       onTap: () => _go('/home'),
                     ),
-                    const Divider(height: 24, indent: 20, endIndent: 20),
                   ],
 
+                  const Divider(height: 24, indent: 20, endIndent: 20),
+
+                  // Shared menu
                   _DrawerItem(
                     icon: Icons.person_rounded,
                     label: 'Profile',
-                    onTap: () => _showComingSoon('Profile'),
+                    onTap: () => _go('/profile'),
                   ),
                   _DrawerItem(
                     icon: Icons.history_rounded,
                     label: 'History',
-                    onTap: () => _showComingSoon('History'),
+                    onTap: () => _go('/history'),
                   ),
                   _DrawerItem(
                     icon: Icons.support_agent_rounded,
                     label: 'Support',
-                    onTap: () => _showComingSoon('Support'),
+                    onTap: () => _go('/support'),
                   ),
                   _DrawerItem(
                     icon: Icons.settings_rounded,
                     label: 'Settings',
-                    onTap: () => _showComingSoon('Settings'),
+                    onTap: () => _go('/settings'),
                   ),
                 ],
               ),

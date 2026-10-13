@@ -40,7 +40,7 @@ class AuthService {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   // ============================================================
-  // LOGIN (all roles)
+  // LOGIN
   // ============================================================
   Future<AuthResult> login({
     required String identifier,
@@ -53,10 +53,9 @@ class AuthService {
         data: {
           'identifier': identifier,
           'password': password,
-          if (uniqueId != null && uniqueId.isNotEmpty) 'uniqueId': uniqueId,
+          'uniqueId': ?uniqueId,
         },
       );
-
       return await _handleAuthResponse(response);
     } on DioException catch (e) {
       final message = e.response?.data?['message']?.toString() ??
@@ -68,7 +67,7 @@ class AuthService {
   }
 
   // ============================================================
-  // CUSTOMER REGISTER (immediate access)
+  // CUSTOMER REGISTER
   // ============================================================
   Future<AuthResult> register({
     required String email,
@@ -92,7 +91,6 @@ class AuthService {
           'locale': locale,
         },
       );
-
       return await _handleAuthResponse(response);
     } on DioException catch (e) {
       final message = e.response?.data?['message']?.toString() ??
@@ -104,7 +102,7 @@ class AuthService {
   }
 
   // ============================================================
-  // DRIVER REGISTER (pending approval)
+  // DRIVER REGISTER
   // ============================================================
   Future<RegistrationResult> registerDriver({
     required String email,
@@ -143,13 +141,12 @@ class AuthService {
           },
         },
       );
-
       final message = response.data['message']?.toString() ??
           'Registration received. Awaiting approval.';
       return RegistrationResult.success(message);
     } on DioException catch (e) {
-      final message = e.response?.data?['message']?.toString() ??
-          'Unable to register';
+      final message =
+          e.response?.data?['message']?.toString() ?? 'Unable to register';
       return RegistrationResult.failure(message);
     } catch (e) {
       return RegistrationResult.failure('Unexpected error: $e');
@@ -157,7 +154,7 @@ class AuthService {
   }
 
   // ============================================================
-  // ADMIN REGISTER (pending super-admin approval)
+  // ADMIN REGISTER
   // ============================================================
   Future<RegistrationResult> registerAdmin({
     required String email,
@@ -178,16 +175,96 @@ class AuthService {
           'locale': 'en',
         },
       );
-
       final message = response.data['message']?.toString() ??
           'Registration received. Awaiting super admin approval.';
       return RegistrationResult.success(message);
     } on DioException catch (e) {
-      final message = e.response?.data?['message']?.toString() ??
-          'Unable to register';
+      final message =
+          e.response?.data?['message']?.toString() ?? 'Unable to register';
       return RegistrationResult.failure(message);
     } catch (e) {
       return RegistrationResult.failure('Unexpected error: $e');
+    }
+  }
+
+  // ============================================================
+  // PROFILE
+  // ============================================================
+  Future<AuthResult> updateProfile({
+    String? fullName,
+    String? phone,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        '/auth/me',
+        data: {
+          'fullName': ?fullName,
+          'phone': ?phone,
+        },
+      );
+
+      final user = User.fromJson(response.data['data'] as Map<String, dynamic>);
+      await _storage.write(key: 'user_json', value: jsonEncode(user.toJson()));
+      return AuthResult.success(user: user, token: '');
+    } on DioException catch (e) {
+      final message =
+          e.response?.data?['message']?.toString() ?? 'Update failed';
+      return AuthResult.failure(message);
+    } catch (e) {
+      return AuthResult.failure('Unexpected error: $e');
+    }
+  }
+
+  Future<RegistrationResult> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        '/auth/password',
+        data: {
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        },
+      );
+      final message = response.data['message']?.toString() ?? 'Password updated';
+      return RegistrationResult.success(message);
+    } on DioException catch (e) {
+      final message = e.response?.data?['message']?.toString() ??
+          'Failed to change password';
+      return RegistrationResult.failure(message);
+    } catch (e) {
+      return RegistrationResult.failure('Unexpected error: $e');
+    }
+  }
+
+  // ============================================================
+  // SETTINGS
+  // ============================================================
+  Future<AuthResult> updateSettings({
+    String? timezone,
+    String? currency,
+    String? locale,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        '/auth/settings',
+        data: {
+          'timezone': ?timezone,
+          'currency': ?currency,
+          'locale': ?locale,
+        },
+      );
+
+      final user = User.fromJson(response.data['data'] as Map<String, dynamic>);
+      await _storage.write(key: 'user_json', value: jsonEncode(user.toJson()));
+      return AuthResult.success(user: user, token: '');
+    } on DioException catch (e) {
+      final message =
+          e.response?.data?['message']?.toString() ?? 'Update failed';
+      return AuthResult.failure(message);
+    } catch (e) {
+      return AuthResult.failure('Unexpected error: $e');
     }
   }
 

@@ -3,13 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_drawer.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_model.dart';
 import '../../../ride/data/ride_model.dart';
 import '../../../ride/data/ride_service.dart';
 import '../../../invoice/data/invoice_model.dart';
 import '../../../invoice/data/invoice_service.dart';
-import '../../../../core/widgets/app_drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -80,48 +80,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _logout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      await AuthService().logout();
-      if (mounted) context.go('/login');
-    }
-  }
-
-  String get _greeting {
-    final h = DateTime.now().hour;
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final user = _user;
-    final firstName = user?.fullName.split(' ').first ?? 'there';
-    final initials = (user?.fullName ?? 'U')
+    final firstName = _user?.fullName.split(' ').first ?? 'there';
+    final initials = (_user?.fullName ?? 'U')
         .split(' ')
         .take(2)
         .map((s) => s.isNotEmpty ? s[0].toUpperCase() : '')
@@ -140,150 +106,66 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               parent: BouncingScrollPhysics(),
             ),
             slivers: [
-              // ==================== HEADER ====================
+              // ============ SINGLE-LINE HEADER ============
               SliverAppBar(
-                expandedHeight: 130,
                 pinned: true,
+                floating: false,
                 elevation: 0,
                 backgroundColor: AppTheme.primary,
-                leading: Builder(
-                  builder: (ctx) => IconButton(
-                    icon: const Icon(Icons.menu_rounded, color: Colors.white),
-                    onPressed: () => Scaffold.of(ctx).openDrawer(),
-                  ),
-                ),
-                actions: [
-                  IconButton(
-                    onPressed: _logout,
-                    icon: const Icon(Icons.logout_rounded, color: Colors.white),
-                    tooltip: 'Logout',
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF1E3A8A), Color(0xFF3B5BC4)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                toolbarHeight: 64,
+                expandedHeight: 64,
+                automaticallyImplyLeading: false,
+                titleSpacing: 16,
+                title: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Colors.white,
+                      child: Text(
+                        initials,
+                        style: TextStyle(
+                          color: AppTheme.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        // Decorative circles
-                        Positioned(
-                          top: -50,
-                          right: -60,
-                          child: Container(
-                            width: 180,
-                            height: 180,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withValues(alpha: 0.07),
-                            ),
-                          ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        firstName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.2,
                         ),
-                        Positioned(
-                          bottom: -80,
-                          left: -50,
-                          child: Container(
-                            width: 200,
-                            height: 200,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withValues(alpha: 0.04),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 30,
-                          left: 130,
-                          child: Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withValues(alpha: 0.06),
-                            ),
-                          ),
-                        ),
-                        // Greeting
-                        Positioned(
-                          left: 20,
-                          right: 20,
-                          bottom: 16,
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(2.5),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.28),
-                                ),
-                                child: CircleAvatar(
-                                  radius: 22,
-                                  backgroundColor: Colors.white,
-                                  child: Text(
-                                    initials,
-                                    style: TextStyle(
-                                      color: AppTheme.primary,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      _greeting,
-                                      style: TextStyle(
-                                        color: Colors.white
-                                            .withValues(alpha: 0.82),
-                                        fontSize: 12,
-                                        letterSpacing: 0.2,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      firstName,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: -0.3,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  Builder(
+                    builder: (ctx) => IconButton(
+                      icon: const Icon(Icons.menu_rounded, color: Colors.white),
+                      onPressed: () => Scaffold.of(ctx).openDrawer(),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 4),
+                ],
               ),
 
-              // ==================== BODY ====================
+              // ============ BODY ============
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    // ---------- ACTIVE RIDE (if any) ----------
                     if (_activeRide != null) ...[
                       _ActiveRideCard(ride: _activeRide!),
                       const SizedBox(height: 16),
                     ],
 
-                    // ---------- PAYMENT DUE ----------
                     if (_payableInvoice != null) ...[
                       _PaymentDueCard(
                         invoice: _payableInvoice!,
@@ -293,13 +175,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       const SizedBox(height: 16),
                     ],
 
-                    // ---------- BOOK A RIDE ----------
                     _BookRideCard(
                       onTap: () => context.go('/request-ride'),
                     ),
                     const SizedBox(height: 24),
 
-                    // ---------- STATS ----------
                     Row(
                       children: [
                         Expanded(
@@ -333,12 +213,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                     const SizedBox(height: 28),
 
-                    // ---------- UPCOMING RIDES ----------
                     _SectionHeader(
                       title: 'Upcoming Rides',
                       icon: Icons.event_note_rounded,
-                      actionLabel: 'See all',
-                      onAction: () {},
+                      actionLabel: _rides.isEmpty ? null : 'See all',
+                      onAction: () => context.go('/history'),
                     ),
                     const SizedBox(height: 12),
 
@@ -353,44 +232,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             padding: const EdgeInsets.only(bottom: 12),
                             child: _RideCard(ride: ride),
                           )),
-
-                    const SizedBox(height: 28),
-
-                    // ---------- QUICK ACTIONS ----------
-                    const _SectionHeader(
-                      title: 'Quick Actions',
-                      icon: Icons.grid_view_rounded,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _QuickAction(
-                          icon: Icons.history_rounded,
-                          label: 'History',
-                          color: const Color(0xFF8B5CF6),
-                          onTap: () {},
-                        ),
-                        _QuickAction(
-                          icon: Icons.person_rounded,
-                          label: 'Profile',
-                          color: const Color(0xFF06B6D4),
-                          onTap: () {},
-                        ),
-                        _QuickAction(
-                          icon: Icons.support_agent_rounded,
-                          label: 'Support',
-                          color: const Color(0xFFF97316),
-                          onTap: () {},
-                        ),
-                        _QuickAction(
-                          icon: Icons.settings_rounded,
-                          label: 'Settings',
-                          color: const Color(0xFF64748B),
-                          onTap: () {},
-                        ),
-                      ],
-                    ),
                   ]),
                 ),
               ),
@@ -406,7 +247,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 // WIDGETS
 // ============================================================
 
-// ---------- ACTIVE RIDE HERO ----------
+Future<void> _handleCall(BuildContext context, AssignedDriver driver) async {
+  final phone = driver.phone;
+  final uri = Uri(scheme: 'tel', path: phone);
+
+  try {
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched) throw Exception('Dialer not available');
+  } catch (_) {
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Call ${driver.fullName}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Could not open the dialer. The driver\'s number is:',
+              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            ),
+            const SizedBox(height: 12),
+            SelectableText(
+              phone,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ActiveRideCard extends StatelessWidget {
   final Ride ride;
   const _ActiveRideCard({required this.ride});
@@ -474,7 +359,6 @@ class _ActiveRideCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Route
           _WhiteRouteLine(
             icon: Icons.my_location_rounded,
             text: ride.pickupAddress,
@@ -492,7 +376,6 @@ class _ActiveRideCard extends StatelessWidget {
             text: ride.dropoffAddress,
           ),
 
-          // Driver info
           if (ride.assignedDriver != null && ride.assignedVehicle != null) ...[
             const SizedBox(height: 16),
             Container(
@@ -595,7 +478,6 @@ class _WhiteRouteLine extends StatelessWidget {
   }
 }
 
-// ---------- BOOK A RIDE HERO ----------
 class _BookRideCard extends StatelessWidget {
   final VoidCallback onTap;
   const _BookRideCard({required this.onTap});
@@ -687,7 +569,6 @@ class _BookRideCard extends StatelessWidget {
   }
 }
 
-// ---------- STAT CARD ----------
 class _StatCard extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -750,7 +631,6 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// ---------- SECTION HEADER ----------
 class _SectionHeader extends StatelessWidget {
   final String title;
   final IconData? icon;
@@ -813,7 +693,6 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ---------- EMPTY STATE ----------
 class _EmptyStateCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -868,59 +747,6 @@ class _EmptyStateCard extends StatelessWidget {
   }
 }
 
-// ---------- QUICK ACTION (circular) ----------
-class _QuickAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Icon(icon, color: color, size: 26),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF334155),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------- RIDE CARD ----------
 class _RideCard extends StatelessWidget {
   final Ride ride;
   const _RideCard({required this.ride});
@@ -1132,7 +958,6 @@ class _RouteLine extends StatelessWidget {
   }
 }
 
-// ---------- PAYMENT DUE ----------
 class _PaymentDueCard extends StatelessWidget {
   final Invoice invoice;
   final VoidCallback onTap;
@@ -1210,56 +1035,6 @@ class _PaymentDueCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// CALL HANDLER (shared)
-// ============================================================
-
-Future<void> _handleCall(BuildContext context, AssignedDriver driver) async {
-  final phone = driver.phone;
-  final uri = Uri(scheme: 'tel', path: phone);
-
-  try {
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched) throw Exception('Dialer not available');
-  } catch (_) {
-    if (!context.mounted) return;
-    // Fallback: show phone number in a dialog
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Call ${driver.fullName}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Could not open the dialer. The driver\'s number is:',
-              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-            ),
-            const SizedBox(height: 12),
-            SelectableText(
-              phone,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
       ),
     );
   }

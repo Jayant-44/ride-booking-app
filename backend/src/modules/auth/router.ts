@@ -8,6 +8,9 @@ import {
   registerAdminController,
   loginController,
   meController,
+  updateProfileController,
+  changePasswordController,
+  updateSettingsController,
 } from './controller.js';
 
 const router = Router();
@@ -20,5 +23,8 @@ router.post('/login', loginController);
 
 // Protected
 router.get('/me', requireAuth, meController);
+router.patch('/me', requireAuth, updateProfileController);
+router.patch('/password', requireAuth, changePasswordController);
+router.patch('/settings', requireAuth, updateSettingsController);
 
 export default router;

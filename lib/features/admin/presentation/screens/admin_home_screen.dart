@@ -82,108 +82,53 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
             ),
             slivers: [
               // HEADER
-              SliverAppBar(
-                expandedHeight: 130,
+                            SliverAppBar(
                 pinned: true,
+                floating: false,
                 elevation: 0,
                 backgroundColor: const Color(0xFF0F172A),
-                leading: Builder(
-                  builder: (ctx) => IconButton(
-                    icon: const Icon(Icons.menu_rounded, color: Colors.white),
-                    onPressed: () => Scaffold.of(ctx).openDrawer(),
-                  ),
-                ),
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.refresh_rounded,
-                        color: Colors.white),
-                    onPressed: _loadData,
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                toolbarHeight: 64,
+                expandedHeight: 64,
+                automaticallyImplyLeading: false,
+                titleSpacing: 16,
+                title: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: const Color(0xFFF59E0B),
+                      child: Text(
+                        initials,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Positioned(
-                          top: -40,
-                          right: -40,
-                          child: Container(
-                            width: 160,
-                            height: 160,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withValues(alpha: 0.05),
-                            ),
-                          ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        firstName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.2,
                         ),
-                        Positioned(
-                          left: 20,
-                          right: 20,
-                          bottom: 16,
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(2.5),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                ),
-                                child: CircleAvatar(
-                                  radius: 22,
-                                  backgroundColor: const Color(0xFFF59E0B),
-                                  child: Text(
-                                    initials,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Text(
-                                      'Admin Dashboard',
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                        letterSpacing: 0.2,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      firstName,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: -0.3,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  Builder(
+                    builder: (ctx) => IconButton(
+                      icon: const Icon(Icons.menu_rounded, color: Colors.white),
+                      onPressed: () => Scaffold.of(ctx).openDrawer(),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 4),
+                ],
               ),
 
               SliverPadding(

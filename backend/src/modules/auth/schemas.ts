@@ -25,7 +25,6 @@ export const RegisterSchema = z.object({
   timezone: z.string().default('UTC'),
   currency: z.string().length(3).default('USD'),
   locale: z.string().default('en'),
-  // NOTE: role is intentionally not accepted — always CUSTOMER
 });
 
 // -------------------- DRIVER REGISTER --------------------
@@ -62,7 +61,40 @@ export const AdminRegisterSchema = z.object({
   locale: z.string().default('en'),
 });
 
+// -------------------- UPDATE PROFILE --------------------
+
+export const UpdateProfileSchema = z
+  .object({
+    fullName: z.string().min(2).optional(),
+    phone: z.string().min(8).optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, {
+    message: 'At least one field is required',
+  });
+
+// -------------------- CHANGE PASSWORD --------------------
+
+export const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(6, 'New password must be at least 6 characters'),
+});
+
+// -------------------- UPDATE SETTINGS --------------------
+
+export const UpdateSettingsSchema = z
+  .object({
+    timezone: z.string().min(2).optional(),
+    currency: z.string().length(3).optional(),
+    locale: z.string().min(2).optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, {
+    message: 'At least one setting is required',
+  });
+
 export type LoginInput = z.infer<typeof LoginSchema>;
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type DriverRegisterInput = z.infer<typeof DriverRegisterSchema>;
 export type AdminRegisterInput = z.infer<typeof AdminRegisterSchema>;
+export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
+export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>;
+export type UpdateSettingsInput = z.infer<typeof UpdateSettingsSchema>;

@@ -8,6 +8,9 @@ import type {
   RegisterInput,
   DriverRegisterInput,
   AdminRegisterInput,
+  UpdateProfileInput,
+  ChangePasswordInput,
+  UpdateSettingsInput,
 } from './schemas.js';
 
 const SALT_ROUNDS = 10;
@@ -205,6 +208,60 @@ export const AuthService = {
       select: userSelect,
     });
     if (!user) throw new Error('USER_NOT_FOUND');
+    return user;
+  },
+    // ---------- UPDATE PROFILE (name / phone) ----------
+  async updateProfile(userId: string, input: UpdateProfileInput) {
+    if (input.phone) {
+      const conflict = await prisma.user.findFirst({
+        where: { phone: input.phone, NOT: { id: userId } },
+      });
+      if (conflict) throw new Error('PHONE_TAKEN');
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(input.fullName !== undefined && { fullName: input.fullName }),
+        ...(input.phone !== undefined && { phone: input.phone }),
+      },
+      select: userSelect,
+    });
+
+    return user;
+  },
+
+  // ---------- CHANGE PASSWORD ----------
+  async changePassword(userId: string, input: ChangePasswordInput) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error('USER_NOT_FOUND');
+
+    const matches = await bcrypt.compare(input.currentPassword, user.password);
+    if (!matches) throw new Error('INVALID_CURRENT_PASSWORD');
+
+    const hashed = await bcrypt.hash(input.newPassword, SALT_ROUNDS);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashed },
+    });
+
+    return { message: 'Password updated successfully' };
+  },
+
+  // ---------- UPDATE SETTINGS (timezone / currency / locale) ----------
+  async updateSettings(userId: string, input: UpdateSettingsInput) {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(input.timezone !== undefined && { timezone: input.timezone }),
+        ...(input.currency !== undefined && {
+          currency: input.currency.toUpperCase(),
+        }),
+        ...(input.locale !== undefined && { locale: input.locale }),
+      },
+      select: userSelect,
+    });
+
     return user;
   },
 };

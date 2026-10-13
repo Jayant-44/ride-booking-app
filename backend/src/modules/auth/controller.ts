@@ -9,6 +9,9 @@ import {
   LoginSchema,
   DriverRegisterSchema,
   AdminRegisterSchema,
+  UpdateProfileSchema,
+  ChangePasswordSchema,
+  UpdateSettingsSchema,
 } from './schemas.js';
 
 export async function registerController(req: Request, res: Response): Promise<void> {
@@ -108,4 +111,77 @@ export async function meController(req: Request, res: Response): Promise<void> {
   }
   const user = await AuthService.me(userId);
   res.success(user);
+}
+
+export async function updateProfileController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const userId = (req as any).user?.id;
+  if (!userId) {
+    res.status(401).json({ success: false, message: 'Not authenticated' });
+    return;
+  }
+
+  const v = customParse(UpdateProfileSchema, req.body);
+  if (!v.success) throw new ValidationError(v.message);
+
+  try {
+    const user = await AuthService.updateProfile(userId, v.data);
+    res.success(user, 'Profile updated');
+  } catch (err) {
+    if (err instanceof Error && err.message === 'PHONE_TAKEN') {
+      res.status(409).json({
+        success: false,
+        message: 'Phone number already in use',
+      });
+      return;
+    }
+    throw err;
+  }
+}
+
+export async function changePasswordController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const userId = (req as any).user?.id;
+  if (!userId) {
+    res.status(401).json({ success: false, message: 'Not authenticated' });
+    return;
+  }
+
+  const v = customParse(ChangePasswordSchema, req.body);
+  if (!v.success) throw new ValidationError(v.message);
+
+  try {
+    const result = await AuthService.changePassword(userId, v.data);
+    res.success(result, result.message);
+  } catch (err) {
+    if (err instanceof Error && err.message === 'INVALID_CURRENT_PASSWORD') {
+      res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect',
+      });
+      return;
+    }
+    throw err;
+  }
+}
+
+export async function updateSettingsController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const userId = (req as any).user?.id;
+  if (!userId) {
+    res.status(401).json({ success: false, message: 'Not authenticated' });
+    return;
+  }
+
+  const v = customParse(UpdateSettingsSchema, req.body);
+  if (!v.success) throw new ValidationError(v.message);
+
+  const user = await AuthService.updateSettings(userId, v.data);
+  res.success(user, 'Settings updated');
 }
