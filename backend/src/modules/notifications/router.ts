@@ -7,11 +7,9 @@ import { isFirebaseReady } from '@/lib/firebase.js';
 
 const router = Router();
 
-/**
- * Called by the Flutter app after login. Saves (or updates) the FCM token.
- * Body: { token: string }
- */
-router.post('/register-token', requireAuth, async (req: Request, res: Response) => {
+// ---------- FCM TOKEN REGISTRATION ----------
+
+router.post('/register-token', requireAuth, async (req, res) => {
   const userId = (req as any).user?.id;
   const { token } = req.body ?? {};
 
@@ -33,10 +31,7 @@ router.post('/register-token', requireAuth, async (req: Request, res: Response) 
   res.success({ firebaseReady: isFirebaseReady() }, 'Token registered');
 });
 
-/**
- * Called on logout. Clears the FCM token so the user stops receiving pushes.
- */
-router.post('/unregister-token', requireAuth, async (req: Request, res: Response) => {
+router.post('/unregister-token', requireAuth, async (req, res) => {
   const userId = (req as any).user?.id;
   if (!userId) {
     res.status(401).json({ success: false, message: 'Not authenticated' });
@@ -49,6 +44,74 @@ router.post('/unregister-token', requireAuth, async (req: Request, res: Response
   });
 
   res.success(null, 'Token cleared');
+});
+
+// ---------- NOTIFICATIONS LIST ----------
+
+router.get('/', requireAuth, async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id;
+  if (!userId) {
+    res.status(401).json({ success: false, message: 'Not authenticated' });
+    return;
+  }
+
+  const notifications = await prisma.notification.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+
+  res.success(notifications);
+});
+
+// ---------- UNREAD COUNT ----------
+
+router.get('/unread-count', requireAuth, async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id;
+  if (!userId) {
+    res.status(401).json({ success: false, message: 'Not authenticated' });
+    return;
+  }
+
+  const count = await prisma.notification.count({
+    where: { userId, readAt: null },
+  });
+
+  res.success({ count });
+});
+
+// ---------- MARK ONE AS READ ----------
+
+router.patch('/:id/read', requireAuth, async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id;
+  if (!userId) {
+    res.status(401).json({ success: false, message: 'Not authenticated' });
+    return;
+  }
+
+  const updated = await prisma.notification.updateMany({
+    where: { id: String(req.params.id), userId },
+    data: { readAt: new Date() },
+  });
+
+  res.success({ updated: updated.count });
+});
+
+// ---------- MARK ALL AS READ ----------
+
+router.patch('/read-all', requireAuth, async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id;
+  if (!userId) {
+    res.status(401).json({ success: false, message: 'Not authenticated' });
+    return;
+  }
+
+  const updated = await prisma.notification.updateMany({
+    where: { userId, readAt: null },
+    data: { readAt: new Date() },
+  });
+
+  res.success({ updated: updated.count });
 });
 
 export default router;

@@ -7,6 +7,7 @@ import '../../../auth/data/user_model.dart';
 import '../../data/driver_models.dart';
 import '../../data/driver_service.dart';
 import '../../../../core/widgets/app_drawer.dart';
+import '../../../../core/widgets/notification_bell.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -129,6 +130,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   ],
                 ),
                 actions: [
+                  const NotificationBell(),
                   Builder(
                     builder: (ctx) => IconButton(
                       icon: const Icon(Icons.menu_rounded, color: Colors.white),

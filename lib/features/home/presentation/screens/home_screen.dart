@@ -10,6 +10,7 @@ import '../../../ride/data/ride_model.dart';
 import '../../../ride/data/ride_service.dart';
 import '../../../invoice/data/invoice_model.dart';
 import '../../../invoice/data/invoice_service.dart';
+import '../../../../core/widgets/notification_bell.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -146,6 +147,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ],
                 ),
                 actions: [
+                  const NotificationBell(), 
                   Builder(
                     builder: (ctx) => IconButton(
                       icon: const Icon(Icons.menu_rounded, color: Colors.white),

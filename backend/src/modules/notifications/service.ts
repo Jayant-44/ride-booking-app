@@ -4,11 +4,30 @@ import { isFirebaseReady, getMessagingClient } from '@/lib/firebase.js';
 interface PushPayload {
   title: string;
   body: string;
+  type: string;
   data?: Record<string, string>;
 }
 
 export const NotificationService = {
+  /**
+   * Persist a notification row + send a push (if the user has a token).
+   */
   async sendToUser(userId: string, payload: PushPayload) {
+    // 1. Persist to DB so the bell icon can show it even if FCM fails
+    try {
+      await prisma.notification.create({
+        data: {
+          userId,
+          title: payload.title,
+          body: payload.body,
+          type: payload.type,
+        },
+      });
+    } catch (err) {
+      console.error('[push] Failed to persist notification:', err);
+    }
+
+    // 2. Send FCM push
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -16,11 +35,7 @@ export const NotificationService = {
       });
 
       if (!user?.fcmToken) return;
-
-      if (!isFirebaseReady()) {
-        console.warn('[push] Firebase not ready, skipping');
-        return;
-      }
+      if (!isFirebaseReady()) return;
 
       const messaging = getMessagingClient();
 
@@ -40,10 +55,7 @@ export const NotificationService = {
         },
         apns: {
           payload: {
-            aps: {
-              sound: 'default',
-              badge: 1,
-            },
+            aps: { sound: 'default', badge: 1 },
           },
         },
       });
@@ -70,6 +82,7 @@ export const NotificationService = {
     await this.sendToUser(driverUserId, {
       title: 'New Ride Offer',
       body: `${customerName} has requested a ride. Tap to view details.`,
+      type: 'assignment_offer',
       data: {
         type: 'assignment_offer',
         screen: '/driver/home',
@@ -85,6 +98,7 @@ export const NotificationService = {
     await this.sendToUser(customerUserId, {
       title: 'Driver Assigned',
       body: `${driverName} (${plateNo}) is on the way to pick you up.`,
+      type: 'driver_assigned',
       data: {
         type: 'driver_assigned',
         screen: '/home',
@@ -100,6 +114,7 @@ export const NotificationService = {
     await this.sendToUser(customerUserId, {
       title: 'Ride Update',
       body: message,
+      type: 'ride_status',
       data: {
         type: 'ride_status',
         status,

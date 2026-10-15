@@ -6,6 +6,7 @@ import '../../../../core/widgets/app_drawer.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_model.dart';
 import '../../data/admin_service.dart';
+import '../../../../core/widgets/notification_bell.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -82,7 +83,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
             ),
             slivers: [
               // HEADER
-                            SliverAppBar(
+              SliverAppBar(
                 pinned: true,
                 floating: false,
                 elevation: 0,
@@ -121,6 +122,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
                   ],
                 ),
                 actions: [
+                  const NotificationBell(),
                   Builder(
                     builder: (ctx) => IconButton(
                       icon: const Icon(Icons.menu_rounded, color: Colors.white),

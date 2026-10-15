@@ -17,6 +17,7 @@ import '../features/profile/presentation/screens/settings_screen.dart';
 import '../features/history/presentation/screens/history_screen.dart';
 import '../features/support/presentation/screens/support_screen.dart';
 import '../core/navigation/nav_key.dart';
+import '../features/notifications/presentation/screens/notifications_screen.dart';
 
 final appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
@@ -79,5 +80,8 @@ final appRouter = GoRouter(
     GoRoute(
         path: '/support',
         builder: (c, s) => const SupportScreen()),
+    GoRoute(
+        path: '/notifications',
+        builder: (c, s) => const NotificationsScreen()),
   ],
 );
