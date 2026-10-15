@@ -6,6 +6,7 @@ export const RideService = {
   async create(userId: string, input: CreateRideInput) {
     const customer = await prisma.customer.findUnique({
       where: { userId },
+      include: { user: { select: { fullName: true } } },
     });
     if (!customer) throw new Error('CUSTOMER_NOT_FOUND');
 
@@ -35,6 +36,19 @@ export const RideService = {
         note: 'Ride created by customer',
       },
     });
+
+    // Fire notification to all admins (best-effort)
+    try {
+      const { NotificationService } = await import(
+        '../notifications/service.js'
+      );
+      await NotificationService.newRideRequested(
+        customer.user.fullName,
+        ride.id
+      );
+    } catch (err) {
+      console.error('[ride.create] notification failed:', err);
+    }
 
     return ride;
   },

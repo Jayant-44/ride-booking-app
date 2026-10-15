@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/clients/prisma.js';
+import { NotificationService } from '../notifications/service.js';
 
 import type { ProgressRideInput } from './schemas.js';
 
@@ -24,10 +25,7 @@ export const DriverAppService = {
           include: {
             customer: {
               select: {
-                // Only share the customer's name here — full details after accept
-                user: {
-                  select: { fullName: true },
-                },
+                user: { select: { fullName: true } },
               },
             },
           },
@@ -47,13 +45,7 @@ export const DriverAppService = {
           include: {
             customer: {
               select: {
-                user: {
-                  select: {
-                    fullName: true,
-                    phone: true,
-                    email: true,
-                  },
-                },
+                user: { select: { fullName: true, phone: true, email: true } },
               },
             },
             statusHistory: { orderBy: { changedAt: 'asc' } },
@@ -65,7 +57,6 @@ export const DriverAppService = {
 
     if (!assignment) throw new Error('ASSIGNMENT_NOT_FOUND');
 
-    // Only reveal customer contact AFTER acceptance
     const accepted = assignment.status === 'ACCEPTED';
     return {
       ...assignment,
@@ -73,9 +64,7 @@ export const DriverAppService = {
         ...assignment.ride,
         customer: accepted
           ? assignment.ride.customer
-          : {
-              user: { fullName: assignment.ride.customer.user.fullName },
-            },
+          : { user: { fullName: assignment.ride.customer.user.fullName } },
       },
     };
   },
@@ -85,7 +74,20 @@ export const DriverAppService = {
 
     const assignment = await prisma.assignment.findFirst({
       where: { id: assignmentId, driverId },
-      include: { ride: true },
+      include: {
+        ride: {
+          include: {
+            customer: {
+              select: {
+                userId: true,
+                user: { select: { fullName: true } },
+              },
+            },
+          },
+        },
+        driver: { include: { user: { select: { fullName: true } } } },
+        vehicle: true,
+      },
     });
 
     if (!assignment) throw new Error('ASSIGNMENT_NOT_FOUND');
@@ -93,27 +95,37 @@ export const DriverAppService = {
       throw new Error('ASSIGNMENT_NOT_OFFERED');
     }
 
-    return prisma.$transaction(async (tx) => {
+    // First-accept-wins guard
+    const existingWinner = await prisma.assignment.findFirst({
+      where: {
+        rideId: assignment.rideId,
+        status: 'ACCEPTED',
+        id: { not: assignmentId },
+      },
+    });
+
+    if (existingWinner) {
+      await prisma.assignment.update({
+        where: { id: assignmentId },
+        data: { status: 'CANCELLED', respondedAt: new Date() },
+      });
+      throw new Error('RIDE_ALREADY_TAKEN');
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
       const updated = await tx.assignment.update({
         where: { id: assignmentId },
-        data: {
-          status: 'ACCEPTED',
-          respondedAt: new Date(),
+        data: { status: 'ACCEPTED', respondedAt: new Date() },
+      });
+
+      // Cancel all other OFFERED assignments for this ride
+      await tx.assignment.updateMany({
+        where: {
+          rideId: assignment.rideId,
+          status: 'OFFERED',
+          id: { not: assignmentId },
         },
-        include: {
-          ride: {
-            include: {
-              customer: {
-                select: {
-                  user: {
-                    select: { fullName: true, phone: true, email: true },
-                  },
-                },
-              },
-            },
-          },
-          vehicle: true,
-        },
+        data: { status: 'CANCELLED', respondedAt: new Date() },
       });
 
       await tx.ride.update({
@@ -126,15 +138,51 @@ export const DriverAppService = {
           rideId: assignment.rideId,
           status: 'DRIVER_ASSIGNED',
           changedBy: userId,
-          note: 'Driver accepted the ride',
+          note: `Driver ${assignment.driver.user.fullName} accepted`,
         },
       });
 
       return updated;
     });
+
+    // Notifications (best-effort)
+    try {
+      const driverName = assignment.driver.user.fullName;
+      const plate = assignment.vehicle.plateNo;
+      const customerName = assignment.ride.customer.user.fullName;
+
+      await NotificationService.notifyCustomerOfAcceptance(
+        assignment.ride.customer.userId,
+        driverName,
+        plate
+      );
+
+      const admins = await prisma.user.findMany({
+        where: { role: 'ADMIN', status: 'ACTIVE' },
+        select: { id: true },
+      });
+
+      await NotificationService.sendToUsers(
+        admins.map((a) => a.id),
+        {
+          title: 'Driver Accepted',
+          body: `${driverName} accepted ${customerName}'s ride.`,
+          type: 'driver_accepted',
+          data: { type: 'driver_accepted', screen: '/admin/home' },
+        }
+      );
+    } catch (err) {
+      console.error('[acceptAssignment] notify failed:', err);
+    }
+
+    return result;
   },
 
-  async rejectAssignment(userId: string, assignmentId: string, reason?: string) {
+  async rejectAssignment(
+    userId: string,
+    assignmentId: string,
+    reason?: string
+  ) {
     const driverId = await resolveDriverId(userId);
 
     const assignment = await prisma.assignment.findFirst({
@@ -150,42 +198,49 @@ export const DriverAppService = {
     return prisma.$transaction(async (tx) => {
       const updated = await tx.assignment.update({
         where: { id: assignmentId },
-        data: {
-          status: 'REJECTED',
-          respondedAt: new Date(),
-        },
+        data: { status: 'REJECTED', respondedAt: new Date() },
       });
 
-      // Ride goes back to CONFIRMED so admin can reassign
-      await tx.ride.update({
-        where: { id: assignment.rideId },
-        data: { status: 'CONFIRMED' },
+      const remainingOffers = await tx.assignment.count({
+        where: { rideId: assignment.rideId, status: 'OFFERED' },
       });
 
-      await tx.rideStatusHistory.create({
-        data: {
-          rideId: assignment.rideId,
-          status: 'CONFIRMED',
-          changedBy: userId,
-          note: reason ?? 'Driver rejected, awaiting reassignment',
-        },
-      });
+      if (remainingOffers === 0) {
+        await tx.ride.update({
+          where: { id: assignment.rideId },
+          data: { status: 'CONFIRMED' },
+        });
+
+        await tx.rideStatusHistory.create({
+          data: {
+            rideId: assignment.rideId,
+            status: 'CONFIRMED',
+            changedBy: userId,
+            note: reason ?? 'All drivers declined, awaiting re-broadcast',
+          },
+        });
+      }
 
       return updated;
     });
   },
 
-  async progressRide(userId: string, rideId: string, input: ProgressRideInput) {
+  async progressRide(
+    userId: string,
+    rideId: string,
+    input: ProgressRideInput
+  ) {
     const driverId = await resolveDriverId(userId);
 
-    // Confirm the driver is assigned to this ride
     const assignment = await prisma.assignment.findFirst({
-      where: {
-        rideId,
-        driverId,
-        status: 'ACCEPTED',
+      where: { rideId, driverId, status: 'ACCEPTED' },
+      include: {
+        ride: {
+          include: {
+            customer: { select: { userId: true } },
+          },
+        },
       },
-      include: { ride: true },
     });
     if (!assignment) throw new Error('ASSIGNMENT_NOT_FOUND');
 
@@ -201,12 +256,10 @@ export const DriverAppService = {
       throw new Error('INVALID_STATUS_TRANSITION');
     }
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const updateData: any = { status: input.status };
       if (input.status === 'COMPLETED') {
         updateData.completedAt = new Date();
-
-        // Bump driver stats
         await tx.driver.update({
           where: { id: driverId },
           data: { totalTrips: { increment: 1 } },
@@ -229,5 +282,24 @@ export const DriverAppService = {
 
       return updated;
     });
+
+    try {
+      const statusMessage: Record<string, string> = {
+        EN_ROUTE: 'Your driver is on the way.',
+        ARRIVED: 'Your driver has arrived.',
+        IN_PROGRESS: 'Your ride has started.',
+        COMPLETED: 'Your ride is complete. Please rate your driver.',
+      };
+
+      await NotificationService.notifyCustomerOfRideStatus(
+        assignment.ride.customer.userId,
+        input.status,
+        statusMessage[input.status] ?? 'Ride status updated.'
+      );
+    } catch (err) {
+      console.error('[progressRide] notify failed:', err);
+    }
+
+    return result;
   },
 };

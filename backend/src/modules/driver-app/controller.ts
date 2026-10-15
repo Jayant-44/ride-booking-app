@@ -51,7 +51,10 @@ export async function getAssignmentDetailController(req: Request, res: Response)
   }
 }
 
-export async function acceptAssignmentController(req: Request, res: Response): Promise<void> {
+export async function acceptAssignmentController(
+  req: Request,
+  res: Response
+): Promise<void> {
   const userId = getUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: 'Not authenticated' });
@@ -65,13 +68,25 @@ export async function acceptAssignmentController(req: Request, res: Response): P
     );
     res.success(assignment, 'Assignment accepted');
   } catch (err) {
-    if (err instanceof Error && err.message === 'ASSIGNMENT_NOT_FOUND') {
-      res.status(404).json({ success: false, message: 'Assignment not found' });
-      return;
-    }
-    if (err instanceof Error && err.message === 'ASSIGNMENT_NOT_OFFERED') {
-      res.status(400).json({ success: false, message: 'Assignment is no longer pending' });
-      return;
+    if (err instanceof Error) {
+      if (err.message === 'ASSIGNMENT_NOT_FOUND') {
+        res.status(404).json({ success: false, message: 'Assignment not found' });
+        return;
+      }
+      if (err.message === 'ASSIGNMENT_NOT_OFFERED') {
+        res.status(400).json({
+          success: false,
+          message: 'Assignment is no longer pending',
+        });
+        return;
+      }
+      if (err.message === 'RIDE_ALREADY_TAKEN') {
+        res.status(409).json({
+          success: false,
+          message: 'Another driver accepted this ride first',
+        });
+        return;
+      }
     }
     throw err;
   }

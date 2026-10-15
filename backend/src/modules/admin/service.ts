@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/clients/prisma.js';
+import { NotificationService } from '../notifications/service.js';
 
 import type { ListRidesQuery } from './schemas.js';
 
@@ -15,18 +16,12 @@ export const AdminService = {
 
     return prisma.ride.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { scheduledAt: 'asc' },
       take: 200,
       include: {
         customer: {
           include: {
-            user: {
-              select: {
-                fullName: true,
-                email: true,
-                phone: true,
-              },
-            },
+            user: { select: { fullName: true, email: true, phone: true } },
           },
         },
         invoice: {
@@ -48,31 +43,19 @@ export const AdminService = {
       include: {
         customer: {
           include: {
-            user: {
-              select: {
-                fullName: true,
-                email: true,
-                phone: true,
-              },
-            },
+            user: { select: { fullName: true, email: true, phone: true } },
           },
         },
         invoice: true,
         assignments: {
           include: {
             driver: {
-              include: {
-                user: {
-                  select: { fullName: true, phone: true },
-                },
-              },
+              include: { user: { select: { fullName: true, phone: true } } },
             },
             vehicle: true,
           },
         },
-        statusHistory: {
-          orderBy: { changedAt: 'asc' },
-        },
+        statusHistory: { orderBy: { changedAt: 'asc' } },
       },
     });
 
@@ -81,7 +64,10 @@ export const AdminService = {
   },
 
   async approveRide(adminId: string, rideId: string) {
-    const ride = await prisma.ride.findUnique({ where: { id: rideId } });
+    const ride = await prisma.ride.findUnique({
+      where: { id: rideId },
+      include: { customer: { select: { userId: true } } },
+    });
     if (!ride) throw new Error('RIDE_NOT_FOUND');
 
     if (ride.status !== 'REQUESTED' && ride.status !== 'ADMIN_REVIEW') {
@@ -102,11 +88,20 @@ export const AdminService = {
       },
     });
 
+    try {
+      await NotificationService.rideReviewed(ride.customer.userId, rideId);
+    } catch (err) {
+      console.error('[approveRide] notify failed:', err);
+    }
+
     return updated;
   },
 
   async rejectRide(adminId: string, rideId: string, reason?: string) {
-    const ride = await prisma.ride.findUnique({ where: { id: rideId } });
+    const ride = await prisma.ride.findUnique({
+      where: { id: rideId },
+      include: { customer: { select: { userId: true } } },
+    });
     if (!ride) throw new Error('RIDE_NOT_FOUND');
 
     if (ride.status === 'REJECTED' || ride.status === 'CANCELLED') {
@@ -127,6 +122,16 @@ export const AdminService = {
       },
     });
 
+    try {
+      await NotificationService.notifyCustomerOfRideStatus(
+        ride.customer.userId,
+        'REJECTED',
+        `Your ride request was rejected.${reason ? ' Reason: ' + reason : ''}`
+      );
+    } catch (err) {
+      console.error('[rejectRide] notify failed:', err);
+    }
+
     return updated;
   },
 
@@ -146,7 +151,10 @@ export const AdminService = {
     rideId: string,
     input: { subtotalCents: number; taxCents: number; currencyCode: string }
   ) {
-    const ride = await prisma.ride.findUnique({ where: { id: rideId } });
+    const ride = await prisma.ride.findUnique({
+      where: { id: rideId },
+      include: { customer: { select: { userId: true } } },
+    });
     if (!ride) throw new Error('RIDE_NOT_FOUND');
 
     if (ride.status !== 'ADMIN_REVIEW') {
@@ -162,11 +170,10 @@ export const AdminService = {
     const d = String(now.getDate()).padStart(2, '0');
     const rand = Math.floor(1000 + Math.random() * 9000);
     const invoiceNo = `INV-${y}${m}${d}-${rand}`;
-
     const totalCents = input.subtotalCents + input.taxCents;
 
-    return prisma.$transaction(async (tx) => {
-      const invoice = await tx.invoice.create({
+    const invoice = await prisma.$transaction(async (tx) => {
+      const inv = await tx.invoice.create({
         data: {
           rideId,
           invoiceNo,
@@ -193,13 +200,145 @@ export const AdminService = {
         },
       });
 
-      return invoice;
+      return inv;
     });
+
+    try {
+      const total = (totalCents / 100).toFixed(2);
+      const sym = input.currencyCode === 'INR' ? '₹' : '$';
+      await NotificationService.rideInvoiceSent(
+        ride.customer.userId,
+        invoice.invoiceNo,
+        `${sym}${total}`
+      );
+    } catch (err) {
+      console.error('[createInvoiceForRide] notify failed:', err);
+    }
+
+    return invoice;
   },
 
-  // ============================================================
-  // USER APPROVALS (drivers & admins)
-  // ============================================================
+  async broadcastToDrivers(adminId: string, rideId: string) {
+    const ride = await prisma.ride.findUnique({
+      where: { id: rideId },
+      include: {
+        customer: {
+          select: {
+            userId: true,
+            user: { select: { fullName: true } },
+          },
+        },
+      },
+    });
+    if (!ride) throw new Error('RIDE_NOT_FOUND');
+
+    if (ride.status !== 'CONFIRMED') {
+      throw new Error('RIDE_NOT_CONFIRMED');
+    }
+
+    const windowStart = new Date(
+      ride.scheduledAt.getTime() - 2 * 60 * 60 * 1000
+    );
+    const windowEnd = new Date(
+      ride.scheduledAt.getTime() + 2 * 60 * 60 * 1000
+    );
+
+    const busyDriverIds = await prisma.assignment
+      .findMany({
+        where: {
+          status: 'ACCEPTED',
+          ride: { scheduledAt: { gte: windowStart, lte: windowEnd } },
+        },
+        select: { driverId: true },
+      })
+      .then((rows) => rows.map((r) => r.driverId));
+
+    const availableDrivers = await prisma.driver.findMany({
+      where: {
+        status: 'ACTIVE',
+        isAvailable: true,
+        id: { notIn: busyDriverIds },
+      },
+      include: {
+        user: { select: { id: true, fullName: true } },
+        vehicles: { where: { active: true }, take: 1 },
+      },
+    });
+
+    if (availableDrivers.length === 0) {
+      throw new Error('NO_DRIVERS_AVAILABLE');
+    }
+
+    const created = await prisma.$transaction(async (tx) => {
+      const offers = [];
+      for (const driver of availableDrivers) {
+        const vehicle = driver.vehicles[0];
+        if (!vehicle) continue;
+
+        const offer = await tx.assignment.create({
+          data: {
+            rideId,
+            driverId: driver.id,
+            vehicleId: vehicle.id,
+            status: 'OFFERED',
+            assignedByAdminId: adminId,
+          },
+        });
+        offers.push(offer);
+      }
+
+      await tx.ride.update({
+        where: { id: rideId },
+        data: { status: 'DRIVER_OFFERED' },
+      });
+
+      await tx.rideStatusHistory.create({
+        data: {
+          rideId,
+          status: 'DRIVER_OFFERED',
+          changedBy: adminId,
+          note: `Broadcast to ${offers.length} drivers`,
+        },
+      });
+
+      return offers;
+    });
+
+        // Notify every driver — include date/time in the body
+    const customerName = ride.customer.user.fullName;
+    const d = ride.scheduledAt;
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    const hour12 = d.getHours() % 12 || 12;
+    const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
+    const timeLabel =
+      `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} · ` +
+      `${hour12}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
+
+    try {
+      await Promise.all(
+        availableDrivers.map((driver) =>
+          NotificationService.sendToUser(driver.user.id, {
+            title: 'New Ride Available',
+            body: `${timeLabel} · ${customerName} · ${ride.pickupAddress}`,
+            type: 'ride_broadcast',
+            data: {
+              type: 'ride_broadcast',
+              rideId,
+              screen: '/driver/home',
+            },
+          })
+        )
+      );
+    } catch (err) {
+      console.error('[broadcastToDrivers] notify failed:', err);
+    }     
+
+    return { broadcast: created.length };
+  },
 
   async listPendingUsers(role?: 'DRIVER' | 'ADMIN') {
     return prisma.user.findMany({
@@ -236,11 +375,7 @@ export const AdminService = {
       where: { id: targetUserId },
     });
     if (!user) throw new Error('USER_NOT_FOUND');
-
-    if (user.status !== 'PENDING') {
-      throw new Error('USER_NOT_PENDING');
-    }
-
+    if (user.status !== 'PENDING') throw new Error('USER_NOT_PENDING');
     if (user.role === 'ADMIN' && !adminIsSuperAdmin) {
       throw new Error('SUPER_ADMIN_REQUIRED');
     }

@@ -256,3 +256,44 @@ export async function rejectUserController(
     throw err;
   }
 }
+
+export async function broadcastRideController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const adminId = getUserId(req);
+  if (!adminId) {
+    res.status(401).json({ success: false, message: 'Not authenticated' });
+    return;
+  }
+
+  try {
+    const result = await AdminService.broadcastToDrivers(
+      adminId,
+      String(req.params.id)
+    );
+    res.success(result, `Offered to ${result.broadcast} driver(s)`);
+  } catch (err) {
+    if (err instanceof Error) {
+      if (err.message === 'RIDE_NOT_FOUND') {
+        res.status(404).json({ success: false, message: 'Ride not found' });
+        return;
+      }
+      if (err.message === 'RIDE_NOT_CONFIRMED') {
+        res.status(400).json({
+          success: false,
+          message: 'Ride must be paid and confirmed first',
+        });
+        return;
+      }
+      if (err.message === 'NO_DRIVERS_AVAILABLE') {
+        res.status(400).json({
+          success: false,
+          message: 'No drivers available for this time slot',
+        });
+        return;
+      }
+    }
+    throw err;
+  }
+}

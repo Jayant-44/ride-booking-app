@@ -1,13 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_drawer.dart';
+import '../../../../core/widgets/notification_bell.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_model.dart';
 import '../../data/driver_models.dart';
 import '../../data/driver_service.dart';
-import '../../../../core/widgets/app_drawer.dart';
-import '../../../../core/widgets/notification_bell.dart';
+import '../widgets/incoming_offer_dialog.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -21,16 +24,23 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   User? _user;
   List<DriverAssignment> _assignments = [];
   bool _loading = true;
+  Timer? _pollTimer;
+  bool _offerDialogOpen = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadData();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _checkForOffers(),
+    );
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -53,15 +63,57 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     }
   }
 
-  List<DriverAssignment> get _offers =>
-      _assignments.where((a) => a.isOffered).toList();
+  Future<void> _checkForOffers() async {
+    if (_offerDialogOpen) return;
+    if (!mounted) return;
 
-  List<DriverAssignment> get _active =>
-      _assignments.where((a) => a.isAccepted).toList();
+    final result = await DriverService().getMyAssignments();
+    final offers =
+        (result.assignments ?? []).where((a) => a.isOffered).toList();
 
-  List<DriverAssignment> get _completed => _assignments
-      .where((a) => a.ride.status == 'COMPLETED')
-      .toList();
+    if (offers.isEmpty || !mounted) return;
+
+    // Sort offers by scheduled date so the nearest one pops first
+    offers.sort((a, b) =>
+        a.ride.scheduledAt.compareTo(b.ride.scheduledAt));
+
+    _offerDialogOpen = true;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      useSafeArea: false,
+      builder: (_) => IncomingOfferDialog(
+        assignment: offers.first,
+        onDismissed: () {
+          _offerDialogOpen = false;
+          _loadData();
+        },
+      ),
+    );
+  }
+
+  // ============================================================
+  // SORTED GETTERS — nearest scheduled date first
+  // ============================================================
+
+  List<DriverAssignment> get _offers {
+    final list = _assignments.where((a) => a.isOffered).toList();
+    list.sort((a, b) => a.ride.scheduledAt.compareTo(b.ride.scheduledAt));
+    return list;
+  }
+
+  List<DriverAssignment> get _active {
+    final list = _assignments.where((a) => a.isAccepted).toList();
+    list.sort((a, b) => a.ride.scheduledAt.compareTo(b.ride.scheduledAt));
+    return list;
+  }
+
+  List<DriverAssignment> get _completed {
+    final list =
+        _assignments.where((a) => a.ride.status == 'COMPLETED').toList();
+    list.sort((a, b) => a.ride.scheduledAt.compareTo(b.ride.scheduledAt));
+    return list;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +142,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               parent: BouncingScrollPhysics(),
             ),
             slivers: [
-              // HEADER
               SliverAppBar(
                 pinned: true,
                 floating: false,
@@ -140,12 +191,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   const SizedBox(width: 4),
                 ],
               ),
-
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    // ---------- STATS ----------
                     Row(
                       children: [
                         Expanded(
@@ -176,10 +225,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 28),
-
-                    // ---------- PENDING OFFERS ----------
                     if (_offers.isNotEmpty) ...[
                       _SectionHeader(
                         title: 'New Offers',
@@ -193,8 +239,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                           )),
                       const SizedBox(height: 16),
                     ],
-
-                    // ---------- ACTIVE RIDES ----------
                     if (_active.isNotEmpty) ...[
                       const _SectionHeader(title: 'Active Rides'),
                       const SizedBox(height: 12),
@@ -204,11 +248,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                           )),
                       const SizedBox(height: 16),
                     ],
-
-                    // ---------- EMPTY STATE ----------
-                    if (_offers.isEmpty && _active.isEmpty) ...[
-                      _EmptyState(),
-                    ],
+                    if (_offers.isEmpty && _active.isEmpty)
+                      const _EmptyState(),
                   ]),
                 ),
               ),
@@ -337,11 +378,15 @@ class _OfferCard extends StatelessWidget {
 
   const _OfferCard({required this.assignment});
 
-  String get _dateLabel {
-    final d = assignment.ride.scheduledAt;
-    final h = d.hour.toString().padLeft(2, '0');
-    final m = d.minute.toString().padLeft(2, '0');
-    return '${d.day}/${d.month}/${d.year} • $h:$m';
+  String _formatDateTimeShort(DateTime dt) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final hour12 = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '${dt.day} ${months[dt.month - 1]} · $hour12:$m $ampm';
   }
 
   @override
@@ -371,11 +416,12 @@ class _OfferCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ===== HEADER: NEW OFFER badge + date/time on right =====
               Row(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
@@ -391,17 +437,27 @@ class _OfferCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    _dateLabel,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF64748B),
-                    ),
+                  // Date/time pill on the RIGHT
+                  Row(
+                    children: [
+                      const Icon(Icons.schedule_rounded,
+                          size: 13, color: Color(0xFF64748B)),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatDateTimeShort(assignment.ride.scheduledAt),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
               const SizedBox(height: 12),
+
+              // Customer
               Row(
                 children: [
                   Container(
@@ -426,7 +482,10 @@ class _OfferCard extends StatelessWidget {
                   ),
                 ],
               ),
+
               const SizedBox(height: 12),
+
+              // Route
               _RouteLine(
                 icon: Icons.my_location_rounded,
                 color: const Color(0xFF10B981),
@@ -445,7 +504,9 @@ class _OfferCard extends StatelessWidget {
                 color: AppTheme.error,
                 text: assignment.ride.dropoffAddress,
               ),
+
               const SizedBox(height: 14),
+
               Row(
                 children: [
                   Expanded(
@@ -677,6 +738,8 @@ class _Chip extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
   @override
   Widget build(BuildContext context) {
     return Container(

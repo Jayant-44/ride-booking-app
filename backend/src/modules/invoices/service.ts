@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/clients/prisma.js';
+import { NotificationService } from '../notifications/service.js';
 
 import type { CreateInvoiceInput, MarkPaidInput } from './schemas.js';
 
@@ -26,9 +27,11 @@ export const InvoiceService = {
     rideId: string,
     input: CreateInvoiceInput
   ) {
-    const ride = await prisma.ride.findUnique({ where: { id: rideId } });
+    const ride = await prisma.ride.findUnique({
+      where: { id: rideId },
+      include: { customer: { select: { userId: true } } },
+    });
     if (!ride) throw new Error('RIDE_NOT_FOUND');
-
     if (ride.status !== 'ADMIN_REVIEW') {
       throw new Error('RIDE_NOT_READY_FOR_INVOICE');
     }
@@ -70,6 +73,18 @@ export const InvoiceService = {
       return created;
     });
 
+    try {
+      const total = (totalCents / 100).toFixed(2);
+      const sym = input.currencyCode === 'INR' ? '₹' : '$';
+      await NotificationService.rideInvoiceSent(
+        ride.customer.userId,
+        invoice.invoiceNo,
+        `${sym}${total}`
+      );
+    } catch (err) {
+      console.error('[createForRide] notify failed:', err);
+    }
+
     return invoice;
   },
 
@@ -97,21 +112,14 @@ export const InvoiceService = {
     const customerId = await resolveCustomerId(userId);
 
     const invoice = await prisma.invoice.findFirst({
-      where: {
-        id: invoiceId,
-        ride: { customerId },
-      },
-      include: {
-        ride: true,
-        payment: true,
-      },
+      where: { id: invoiceId, ride: { customerId } },
+      include: { ride: true, payment: true },
     });
 
     if (!invoice) throw new Error('INVOICE_NOT_FOUND');
     return invoice;
   },
 
-  // Manual "mark as paid" — used until Stripe is wired
   async markAsPaid(
     userId: string,
     invoiceId: string,
@@ -121,28 +129,29 @@ export const InvoiceService = {
 
     const invoice = await prisma.invoice.findFirst({
       where: { id: invoiceId, ride: { customerId } },
-      include: { ride: true },
+      include: {
+        ride: {
+          include: {
+            customer: { select: { user: { select: { fullName: true } } } },
+          },
+        },
+      },
     });
     if (!invoice) throw new Error('INVOICE_NOT_FOUND');
-
-    if (invoice.status === 'PAID') {
-      throw new Error('INVOICE_ALREADY_PAID');
-    }
+    if (invoice.status === 'PAID') throw new Error('INVOICE_ALREADY_PAID');
 
     const result = await prisma.$transaction(async (tx) => {
       const updatedInvoice = await tx.invoice.update({
         where: { id: invoiceId },
-        data: {
-          status: 'PAID',
-          paidAt: new Date(),
-        },
+        data: { status: 'PAID', paidAt: new Date() },
       });
 
       await tx.payment.create({
         data: {
           invoiceId,
           provider: 'manual',
-          providerPaymentId: input.providerPaymentId ?? `manual-${Date.now()}`,
+          providerPaymentId:
+            input.providerPaymentId ?? `manual-${Date.now()}`,
           amountCents: invoice.totalCents,
           currencyCode: invoice.currencyCode,
           status: 'SUCCEEDED',
@@ -166,6 +175,37 @@ export const InvoiceService = {
 
       return updatedInvoice;
     });
+
+    // Notify customer
+    try {
+      await NotificationService.notifyCustomerOfRideStatus(
+        userId,
+        'CONFIRMED',
+        'Payment received. Your ride is confirmed!'
+      );
+    } catch (err) {
+      console.error('[markAsPaid] customer notify failed:', err);
+    }
+
+    // Notify all admins
+    try {
+      const total = (invoice.totalCents / 100).toFixed(2);
+      const sym = invoice.currencyCode === 'INR' ? '₹' : '$';
+      const customerName = invoice.ride.customer.user.fullName;
+
+      const admins = await prisma.user.findMany({
+        where: { role: 'ADMIN', status: 'ACTIVE' },
+        select: { id: true },
+      });
+
+      await NotificationService.paymentReceived(
+        admins.map((a) => a.id),
+        customerName,
+        `${sym}${total}`
+      );
+    } catch (err) {
+      console.error('[markAsPaid] admins notify failed:', err);
+    }
 
     return result;
   },

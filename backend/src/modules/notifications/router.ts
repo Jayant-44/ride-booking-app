@@ -4,20 +4,26 @@ import type { Request, Response } from 'express';
 import { requireAuth } from '@/middlewares/auth.middleware.js';
 import { prisma } from '@/lib/clients/prisma.js';
 import { isFirebaseReady } from '@/lib/firebase.js';
+import { NotificationService } from './service.js';
 
 const router = Router();
 
-// ---------- FCM TOKEN REGISTRATION ----------
+function getUserId(req: Request): string | null {
+  return (req as any).user?.id ?? null;
+}
+
+// ============================================================
+// FCM TOKEN
+// ============================================================
 
 router.post('/register-token', requireAuth, async (req, res) => {
-  const userId = (req as any).user?.id;
+  const userId = getUserId(req);
   const { token } = req.body ?? {};
 
   if (!userId) {
     res.status(401).json({ success: false, message: 'Not authenticated' });
     return;
   }
-
   if (!token || typeof token !== 'string') {
     res.status(400).json({ success: false, message: 'token is required' });
     return;
@@ -32,7 +38,7 @@ router.post('/register-token', requireAuth, async (req, res) => {
 });
 
 router.post('/unregister-token', requireAuth, async (req, res) => {
-  const userId = (req as any).user?.id;
+  const userId = getUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: 'Not authenticated' });
     return;
@@ -46,72 +52,66 @@ router.post('/unregister-token', requireAuth, async (req, res) => {
   res.success(null, 'Token cleared');
 });
 
-// ---------- NOTIFICATIONS LIST ----------
+// ============================================================
+// LIST / COUNT / READ
+// ============================================================
 
-router.get('/', requireAuth, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.get('/', requireAuth, async (req, res) => {
+  const userId = getUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: 'Not authenticated' });
     return;
   }
 
-  const notifications = await prisma.notification.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-  });
-
-  res.success(notifications);
+  const unreadOnly = req.query.unreadOnly === 'true';
+  const list = await NotificationService.listMine(userId, unreadOnly);
+  res.success(list);
 });
 
-// ---------- UNREAD COUNT ----------
-
-router.get('/unread-count', requireAuth, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.get('/unread-count', requireAuth, async (req, res) => {
+  const userId = getUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: 'Not authenticated' });
     return;
   }
 
-  const count = await prisma.notification.count({
-    where: { userId, readAt: null },
-  });
-
+  const count = await NotificationService.unreadCount(userId);
   res.success({ count });
 });
 
-// ---------- MARK ONE AS READ ----------
-
-router.patch('/:id/read', requireAuth, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.patch('/:id/read', requireAuth, async (req, res) => {
+  const userId = getUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: 'Not authenticated' });
     return;
   }
 
-  const updated = await prisma.notification.updateMany({
-    where: { id: String(req.params.id), userId },
-    data: { readAt: new Date() },
-  });
-
-  res.success({ updated: updated.count });
+  try {
+    const notif = await NotificationService.markRead(
+      userId,
+      String(req.params.id)
+    );
+    res.success(notif, 'Marked as read');
+  } catch (err) {
+    if (err instanceof Error && err.message === 'NOTIFICATION_NOT_FOUND') {
+      res
+        .status(404)
+        .json({ success: false, message: 'Notification not found' });
+      return;
+    }
+    throw err;
+  }
 });
 
-// ---------- MARK ALL AS READ ----------
-
-router.patch('/read-all', requireAuth, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.patch('/read-all', requireAuth, async (req, res) => {
+  const userId = getUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: 'Not authenticated' });
     return;
   }
 
-  const updated = await prisma.notification.updateMany({
-    where: { userId, readAt: null },
-    data: { readAt: new Date() },
-  });
-
-  res.success({ updated: updated.count });
+  const result = await NotificationService.markAllRead(userId);
+  res.success(result, result.message);
 });
 
 export default router;

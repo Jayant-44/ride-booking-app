@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 
 import { prisma } from '@/lib/clients/prisma.js';
+import { NotificationService } from '../notifications/service.js';
 
 import type { CreateDriverInput } from './schemas.js';
 
@@ -88,18 +89,18 @@ export const DriverService = {
     const ride = await prisma.ride.findUnique({ where: { id: rideId } });
     if (!ride) throw new Error('RIDE_NOT_FOUND');
 
-    // Window: +/- 2 hours around ride time — avoids double-booking
-    const windowStart = new Date(ride.scheduledAt.getTime() - 2 * 60 * 60 * 1000);
-    const windowEnd = new Date(ride.scheduledAt.getTime() + 2 * 60 * 60 * 1000);
+    const windowStart = new Date(
+      ride.scheduledAt.getTime() - 2 * 60 * 60 * 1000
+    );
+    const windowEnd = new Date(
+      ride.scheduledAt.getTime() + 2 * 60 * 60 * 1000
+    );
 
-    // Drivers who already have an accepted assignment in that window
     const busyDriverIds = await prisma.assignment
       .findMany({
         where: {
           status: 'ACCEPTED',
-          ride: {
-            scheduledAt: { gte: windowStart, lte: windowEnd },
-          },
+          ride: { scheduledAt: { gte: windowStart, lte: windowEnd } },
         },
         select: { driverId: true },
       })
@@ -112,9 +113,7 @@ export const DriverService = {
         id: { notIn: busyDriverIds },
       },
       include: {
-        user: {
-          select: { fullName: true, phone: true, email: true },
-        },
+        user: { select: { fullName: true, phone: true, email: true } },
         vehicles: { where: { active: true } },
       },
     });
@@ -133,9 +132,12 @@ export const DriverService = {
       throw new Error('RIDE_NOT_CONFIRMED');
     }
 
-    // Conflict check: does the driver already have an accepted assignment in ±2h?
-    const windowStart = new Date(ride.scheduledAt.getTime() - 2 * 60 * 60 * 1000);
-    const windowEnd = new Date(ride.scheduledAt.getTime() + 2 * 60 * 60 * 1000);
+    const windowStart = new Date(
+      ride.scheduledAt.getTime() - 2 * 60 * 60 * 1000
+    );
+    const windowEnd = new Date(
+      ride.scheduledAt.getTime() + 2 * 60 * 60 * 1000
+    );
 
     const conflict = await prisma.assignment.findFirst({
       where: {
@@ -146,8 +148,9 @@ export const DriverService = {
     });
     if (conflict) throw new Error('DRIVER_DOUBLE_BOOKED');
 
-    return prisma.$transaction(async (tx) => {
-      const assignment = await tx.assignment.create({
+    // Create the assignment inside a transaction
+    const assignment = await prisma.$transaction(async (tx) => {
+      const created = await tx.assignment.create({
         data: {
           rideId,
           driverId,
@@ -173,32 +176,36 @@ export const DriverService = {
           rideId,
           status: 'DRIVER_OFFERED',
           changedBy: adminId,
-          note: `Driver offer sent to ${assignment.driver.user.fullName}`,
+          note: `Driver offer sent to ${created.driver.user.fullName}`,
         },
       });
 
-            // Send push notification to the driver
-      const driverUser = await tx.user.findUnique({
-        where: { id: assignment.driver.userId ?? '' },
-        select: { id: true },
-      });
-
-      const customer = await tx.customer.findUnique({
-        where: { id: ride.customerId },
-        include: { user: { select: { fullName: true } } },
-      });
-
-      // Fire-and-forget — don't block the response
-      if (driverUser) {
-        import('../notifications/service.js').then(({ NotificationService }) => {
-          NotificationService.notifyDriverOfOffer(
-            driverUser.id,
-            customer?.user.fullName ?? 'A customer'
-          ).catch(() => {});
-        });
-      }
-
-      return assignment;
+      return created;
     });
+
+    // Send push AFTER transaction (fire-and-forget)
+    try {
+      const driver = await prisma.driver.findUnique({
+        where: { id: driverId },
+        select: { userId: true },
+      });
+
+      const customer = await prisma.customer.findUnique({
+        where: { id: ride.customerId },
+        select: { user: { select: { fullName: true } } },
+      });
+
+      if (driver) {
+        await NotificationService.notifyDriverOfOffer(
+          driver.userId,
+          customer?.user.fullName ?? 'A customer',
+          rideId
+        );
+      }
+    } catch (err) {
+      console.error('[assignDriver] notify failed:', err);
+    }
+
+    return assignment;
   },
 };

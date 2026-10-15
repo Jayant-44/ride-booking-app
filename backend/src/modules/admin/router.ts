@@ -13,6 +13,7 @@ import {
   listPendingUsersController,
   approveUserController,
   rejectUserController,
+  broadcastRideController,
 } from './controller.js';
 
 const router = Router();
@@ -27,8 +28,9 @@ router.get('/rides/:id', getRideController);
 router.patch('/rides/:id/approve', approveRideController);
 router.patch('/rides/:id/reject', rejectRideController);
 router.post('/rides/:id/invoice', createInvoiceController);
+router.post('/rides/:id/broadcast', broadcastRideController);
 
-// User approvals (drivers & admins)
+// User approvals
 router.get('/pending-users', listPendingUsersController);
 router.post('/users/:id/approve', approveUserController);
 router.post('/users/:id/reject', rejectUserController);

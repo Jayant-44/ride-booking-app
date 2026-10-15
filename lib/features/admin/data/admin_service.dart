@@ -113,6 +113,9 @@ class AdminActionResult<T> {
 class AdminService {
   final Dio _dio = ApiClient().dio;
 
+  // ============================================================
+  // STATS
+  // ============================================================
   Future<AdminActionResult<AdminStats>> getStats() async {
     try {
       final res = await _dio.get('/admin/stats');
@@ -123,9 +126,14 @@ class AdminService {
       return AdminActionResult.failure(
         e.response?.data?['message']?.toString() ?? 'Failed to load stats',
       );
+    } catch (e) {
+      return AdminActionResult.failure('Unexpected error: $e');
     }
   }
 
+  // ============================================================
+  // RIDES
+  // ============================================================
   Future<AdminActionResult<List<dynamic>>> getRides() async {
     try {
       final res = await _dio.get('/admin/rides');
@@ -134,9 +142,65 @@ class AdminService {
       return AdminActionResult.failure(
         e.response?.data?['message']?.toString() ?? 'Failed to load rides',
       );
+    } catch (e) {
+      return AdminActionResult.failure('Unexpected error: $e');
     }
   }
 
+  Future<AdminActionResult<void>> approveRide(String rideId) async {
+    try {
+      await _dio.patch('/admin/rides/$rideId/approve');
+      return AdminActionResult.success(null);
+    } on DioException catch (e) {
+      return AdminActionResult.failure(
+        e.response?.data?['message']?.toString() ?? 'Failed to approve ride',
+      );
+    }
+  }
+
+  Future<AdminActionResult<void>> rejectRide(String rideId) async {
+    try {
+      await _dio.patch(
+        '/admin/rides/$rideId/reject',
+        data: {'reason': 'Rejected by admin'},
+      );
+      return AdminActionResult.success(null);
+    } on DioException catch (e) {
+      return AdminActionResult.failure(
+        e.response?.data?['message']?.toString() ?? 'Failed to reject ride',
+      );
+    }
+  }
+
+  // ============================================================
+  // INVOICES
+  // ============================================================
+  Future<AdminActionResult<void>> createInvoice(
+    String rideId, {
+    required int subtotalCents,
+    required int taxCents,
+    String currencyCode = 'INR',
+  }) async {
+    try {
+      await _dio.post(
+        '/admin/rides/$rideId/invoice',
+        data: {
+          'subtotalCents': subtotalCents,
+          'taxCents': taxCents,
+          'currencyCode': currencyCode,
+        },
+      );
+      return AdminActionResult.success(null);
+    } on DioException catch (e) {
+      return AdminActionResult.failure(
+        e.response?.data?['message']?.toString() ?? 'Failed to create invoice',
+      );
+    }
+  }
+
+  // ============================================================
+  // PENDING USERS
+  // ============================================================
   Future<AdminActionResult<List<PendingUser>>> getPendingUsers() async {
     try {
       final res = await _dio.get('/admin/pending-users');
@@ -181,36 +245,14 @@ class AdminService {
     }
   }
 
-  Future<AdminActionResult<void>> approveRide(String rideId) async {
+  Future<AdminActionResult<int>> broadcastRide(String rideId) async {
     try {
-      await _dio.patch('/admin/rides/$rideId/approve');
-      return AdminActionResult.success(null);
+      final res = await _dio.post('/admin/rides/$rideId/broadcast');
+      final count = res.data['data']?['broadcast'] as int? ?? 0;
+      return AdminActionResult.success(count);
     } on DioException catch (e) {
       return AdminActionResult.failure(
-        e.response?.data?['message']?.toString() ?? 'Failed to approve ride',
-      );
-    }
-  }
-
-  Future<AdminActionResult<void>> createInvoice(
-    String rideId, {
-    required int subtotalCents,
-    required int taxCents,
-    String currencyCode = 'INR',
-  }) async {
-    try {
-      await _dio.post(
-        '/admin/rides/$rideId/invoice',
-        data: {
-          'subtotalCents': subtotalCents,
-          'taxCents': taxCents,
-          'currencyCode': currencyCode,
-        },
-      );
-      return AdminActionResult.success(null);
-    } on DioException catch (e) {
-      return AdminActionResult.failure(
-        e.response?.data?['message']?.toString() ?? 'Failed to create invoice',
+        e.response?.data?['message']?.toString() ?? 'Failed to broadcast',
       );
     }
   }

@@ -12,13 +12,14 @@ class NotificationBell extends StatefulWidget {
 
 class _NotificationBellState extends State<NotificationBell>
     with WidgetsBindingObserver {
-  int _unread = 0;
+  final _api = NotificationsApi();
+  int _count = 0;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _fetchCount();
+    _load();
   }
 
   @override
@@ -29,47 +30,48 @@ class _NotificationBellState extends State<NotificationBell>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _fetchCount();
+    if (state == AppLifecycleState.resumed) _load();
   }
 
-  Future<void> _fetchCount() async {
-    final result = await NotificationsApi().unreadCount();
-    if (mounted) setState(() => _unread = result.count);
+  Future<void> _load() async {
+    final result = await _api.unreadCount();
+    if (mounted) setState(() => _count = result.count);
+  }
+
+  Future<void> _open() async {
+    await context.push('/notifications');
+    _load();
   }
 
   @override
   Widget build(BuildContext context) {
     return Stack(
-      alignment: Alignment.center,
+      clipBehavior: Clip.none,
       children: [
         IconButton(
           icon: const Icon(Icons.notifications_rounded, color: Colors.white),
+          onPressed: _open,
           tooltip: 'Notifications',
-          onPressed: () async {
-            await context.push('/notifications');
-            _fetchCount();
-          },
         ),
-        if (_unread > 0)
+        if (_count > 0)
           Positioned(
+            right: 6,
             top: 8,
-            right: 8,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
               constraints: const BoxConstraints(minWidth: 16),
               decoration: BoxDecoration(
                 color: const Color(0xFFEF4444),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white, width: 1.5),
+                border: Border.all(color: Colors.white, width: 1.2),
               ),
               child: Text(
-                _unread > 9 ? '9+' : '$_unread',
+                _count > 99 ? '99+' : '$_count',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  height: 1.2,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),

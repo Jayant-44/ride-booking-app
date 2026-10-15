@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/driver/data/driver_service.dart';
+import '../../features/driver/presentation/widgets/incoming_offer_dialog.dart';
 import '../navigation/nav_key.dart';
 
 @pragma('vm:entry-point')
@@ -26,6 +28,8 @@ class NotificationService {
   static const _channelId = 'rides';
   static const _channelName = 'Ride Updates';
   static const _channelDesc = 'Notifications about ride offers and status';
+
+  bool _offerDialogOpen = false;
 
   Future<void> initialize() async {
     try {
@@ -53,7 +57,7 @@ class NotificationService {
         _channelId,
         _channelName,
         description: _channelDesc,
-        importance: Importance.high,
+        importance: Importance.max,
       );
       await _local
           .resolvePlatformSpecificImplementation<
@@ -65,7 +69,7 @@ class NotificationService {
 
       final initial = await _messaging.getInitialMessage();
       if (initial != null) {
-        Future.delayed(const Duration(milliseconds: 800), () {
+        Future.delayed(const Duration(milliseconds: 900), () {
           _handleOpenedApp(initial);
         });
       }
@@ -84,6 +88,12 @@ class NotificationService {
   }
 
   Future<void> _handleForeground(RemoteMessage message) async {
+    // Broadcast → show full-screen offer dialog
+    if (message.data['type'] == 'ride_broadcast') {
+      await _showBroadcastDialog();
+      return;
+    }
+
     final notification = message.notification;
     if (notification == null) return;
 
@@ -96,7 +106,7 @@ class NotificationService {
           _channelId,
           _channelName,
           channelDescription: _channelDesc,
-          importance: Importance.high,
+          importance: Importance.max,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
         ),
@@ -106,34 +116,72 @@ class NotificationService {
     );
   }
 
+  Future<void> _showBroadcastDialog() async {
+    if (_offerDialogOpen) return;
+    final ctx = rootNavigatorKey.currentContext;
+    if (ctx == null) return;
+
+    try {
+      final result = await DriverService().getMyAssignments();
+      final offered = (result.assignments ?? [])
+          .where((a) => a.isOffered)
+          .toList();
+      if (offered.isEmpty) return;
+
+      _offerDialogOpen = true;
+
+      if (!ctx.mounted) {
+        _offerDialogOpen = false;
+        return;
+      }
+
+      await showDialog(
+        context: ctx,
+        barrierDismissible: false,
+        useSafeArea: false,
+        builder: (_) => IncomingOfferDialog(
+          assignment: offered.first,
+          onDismissed: () {
+            _offerDialogOpen = false;
+          },
+        ),
+      );
+    } catch (e) {
+      _offerDialogOpen = false;
+      debugPrint('[FCM] Broadcast dialog failed: $e');
+    }
+  }
+
   void _onLocalTap(NotificationResponse response) {
     if (response.payload == null) return;
     try {
       final data = jsonDecode(response.payload!) as Map<String, dynamic>;
-      _navigateFromData(data);
+      if (data['type'] == 'ride_broadcast') {
+        _showBroadcastDialog();
+      } else {
+        _navigateFromData(data);
+      }
     } catch (e) {
       debugPrint('[FCM] Payload parse failed: $e');
     }
   }
 
   void _handleOpenedApp(RemoteMessage message) {
+    if (message.data['type'] == 'ride_broadcast') {
+      _showBroadcastDialog();
+      return;
+    }
     _navigateFromData(message.data);
   }
 
   void _navigateFromData(Map<String, dynamic> data) {
     final screen = data['screen'] as String?;
-    final type = data['type'] as String?;
-
     final ctx = rootNavigatorKey.currentContext;
     if (ctx == null) return;
 
     try {
       if (screen != null) {
         GoRouter.of(ctx).go(screen);
-        return;
-      }
-      if (type == 'assignment_offer') {
-        GoRouter.of(ctx).go('/driver/home');
       } else {
         GoRouter.of(ctx).go('/home');
       }
