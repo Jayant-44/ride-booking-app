@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../../../core/services/notification_service.dart';
 
+import '../../../core/services/notification_service.dart';
 import '../../../core/config/api_client.dart';
 import 'user_model.dart';
 import 'dart:async';
@@ -39,7 +39,11 @@ class RegistrationResult {
 
 class AuthService {
   final Dio _dio = ApiClient().dio;
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  
+  // THE FIX: Added AndroidOptions to prevent random null returns on Android
+  final FlutterSecureStorage _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
   // ============================================================
   // LOGIN
@@ -273,7 +277,7 @@ class AuthService {
   // ============================================================
   // HELPERS
   // ============================================================
-    Future<AuthResult> _handleAuthResponse(Response response) async {
+  Future<AuthResult> _handleAuthResponse(Response response) async {
     final data = response.data['data'];
     final token = data['token'] as String;
     final user = User.fromJson(data['user'] as Map<String, dynamic>);
@@ -288,9 +292,13 @@ class AuthService {
   }
 
   Future<User?> getStoredUser() async {
-    final jsonStr = await _storage.read(key: 'user_json');
-    if (jsonStr == null) return null;
-    return User.fromJson(jsonDecode(jsonStr) as Map<String, dynamic>);
+    try {
+      final jsonStr = await _storage.read(key: 'user_json');
+      if (jsonStr == null) return null;
+      return User.fromJson(jsonDecode(jsonStr) as Map<String, dynamic>);
+    } catch (e) {
+      return null;
+    }
   }
 
   Future<void> logout() async {
@@ -301,8 +309,12 @@ class AuthService {
   }
 
   Future<bool> isLoggedIn() async {
-    final token = await _storage.read(key: 'jwt_token');
-    return token != null;
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      return token != null;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<void> registerFcmToken() async {
@@ -321,5 +333,4 @@ class AuthService {
       await _dio.post('/notifications/unregister-token');
     } catch (_) {}
   }
-
 }
