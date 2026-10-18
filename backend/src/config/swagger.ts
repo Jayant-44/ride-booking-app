@@ -17,8 +17,10 @@ const options = {
       },
     ],
   },
-  // process.cwd() ensures it works in both dev and production builds
-  apis: [path.join(process.cwd(), 'src/modules/**/*.ts'), path.join(process.cwd(), 'dist/modules/**/*.js')], 
+  apis: [
+    path.join(process.cwd(), 'src/modules/**/*.ts'), 
+    path.join(process.cwd(), 'dist/modules/**/*.js')
+  ], 
 };
 
 const specs = swaggerJsdoc(options);
