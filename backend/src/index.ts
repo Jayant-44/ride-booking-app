@@ -1,13 +1,14 @@
 import './config/express-async-patch.js';
 import './config/logger.js';
 import express from 'express';
-import type { Express } from 'express';
+import type {  Express, Request, Response } from 'express';
 
 import { env } from './config/env.js';
 import { swaggerUi, specs } from './config/swagger.js';
 import { configureMiddlewares, errorHandler } from './middlewares/index.js';
 import router from './routes.js';
 import { initFirebase } from './lib/firebase.js';
+
 
 const app: Express = express();
 
@@ -31,9 +32,9 @@ app.use(
 );
 
 // Endpoint para servir el JSON de OpenAPI
-app.get('/api-docs.json', (req, res) => {
-	res.setHeader('Content-Type', 'application/json');
-	res.send(specs);
+app.get('/api-docs.json', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(specs);
 });
 
 // Routes
