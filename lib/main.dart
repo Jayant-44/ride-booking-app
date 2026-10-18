@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/foundation.dart';
 
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
@@ -11,7 +12,10 @@ import 'routing/app_router.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
+  
+  // Load the correct environment file
+  const envFile = kReleaseMode ? '.env.production' : '.env';
+  await dotenv.load(fileName: envFile);
 
   try {
     await Firebase.initializeApp();

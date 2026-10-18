@@ -9,6 +9,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [uniqueId, setUniqueId] = useState('');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -16,7 +17,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await api.post('/auth/login', { email, password });
+      const res = await api.post('/auth/login', {  identifier: email, password, uniqueId });
       const { user, token } = res.data.data;
 
       if (user.role !== 'ADMIN') {
@@ -58,6 +59,20 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="admin@example.com"
+              className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Admin ID
+            </label>
+            <input
+              type="text"
+              value={uniqueId}
+              onChange={(e) => setUniqueId(e.target.value)}
+              required
+              placeholder="e.g. ADM-SUPER001"
               className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
