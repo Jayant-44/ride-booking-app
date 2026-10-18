@@ -4,6 +4,7 @@ import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/auth/presentation/screens/driver_register_screen.dart';
 import '../features/auth/presentation/screens/admin_register_screen.dart';
+import '../features/auth/data/auth_service.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/invoice/presentation/screens/invoice_detail_screen.dart';
 import '../features/ride/presentation/screens/ride_request_screen.dart';
@@ -23,6 +24,26 @@ import '../features/auth/presentation/screens/splash_screen.dart';
 final appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
   initialLocation: '/splash',
+    redirect: (context, state) async {
+    final user = await AuthService().getStoredUser();
+    final isLoggingIn = state.matchedLocation == '/login' || state.matchedLocation == '/splash' || state.matchedLocation == '/register';
+
+    if (user == null) {
+      if (!isLoggingIn) return '/login';
+      return null;
+    }
+
+    if (isLoggingIn) {
+      switch (user.role) {
+        case 'DRIVER': return '/driver/home';
+        case 'ADMIN': return '/admin/home';
+        default: return '/home';
+      }
+    }
+
+    return null;
+  },
+  
   routes: [
      GoRoute(
       path: '/splash',
