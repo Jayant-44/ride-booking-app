@@ -37,35 +37,36 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
 
-    final result = await AuthService().login(
-      identifier: _identifierCtrl.text.trim(),
-      password: _passwordCtrl.text,
-      uniqueId: _needsUniqueId ? _uniqueIdCtrl.text.trim() : null,
-    );
-
-    if (!mounted) return;
-    setState(() => _loading = false);
-
-    if (!result.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.error ?? 'Login failed'),
-          backgroundColor: AppTheme.error,
-        ),
+    try {
+      final result = await AuthService().login(
+        identifier: _identifierCtrl.text.trim(),
+        password: _passwordCtrl.text,
+        uniqueId: _needsUniqueId ? _uniqueIdCtrl.text.trim() : null,
       );
-      return;
-    }
 
-    // Role-based routing
-    switch (result.user!.role) {
-      case 'DRIVER':
-        context.go('/driver/home');
-        break;
-        case 'ADMIN':
-        context.go('/admin/home');
-        break;
-      default:
-        context.go('/home');
+      if (!mounted) return;
+
+      if (!result.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.error ?? 'Login failed'), backgroundColor: AppTheme.error),
+        );
+        return;
+      }
+
+      // Role-based routing
+      switch (result.user!.role) {
+        case 'DRIVER': context.go('/driver/home'); break;
+        case 'ADMIN': context.go('/admin/home'); break;
+        default: context.go('/home');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Network error: $e'), backgroundColor: AppTheme.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false); // <--- THIS STOPS THE SPINNER
     }
   }
 

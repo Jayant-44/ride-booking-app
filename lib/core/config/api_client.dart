@@ -17,14 +17,17 @@ class ApiClient {
       headers: {'Content-Type': 'application/json'},
     ));
 
-    dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final token = await _storage.read(key: 'jwt_token');
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        handler.next(options);
-      },
-    ));
+      dio.interceptors.add(InterceptorsWrapper(
+    onError: (DioException error, ErrorInterceptorHandler handler) async {
+      // ONLY log out if the backend explicitly says Unauthorized (401).
+      // Do NOT log out on 502/503 (Render sleeping) or network timeouts.
+      if (error.response?.statusCode == 401) {
+        await _storage.delete(key: 'jwt_token');
+        await _storage.delete(key: 'user_json');
+        // Let the router handle the redirect naturally
+      }
+      handler.next(error);
+    },
+  ));
   }
 }

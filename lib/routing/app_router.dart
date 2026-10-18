@@ -18,11 +18,16 @@ import '../features/history/presentation/screens/history_screen.dart';
 import '../features/support/presentation/screens/support_screen.dart';
 import '../core/navigation/nav_key.dart';
 import '../features/notifications/presentation/screens/notifications_screen.dart';
+import '../features/auth/presentation/screens/splash_screen.dart';
 
 final appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
-  initialLocation: '/login',
+  initialLocation: '/splash',
   routes: [
+     GoRoute(
+      path: '/splash',
+      builder: (context, state) => const SplashScreen(), // <--- ADD THIS
+    ),
     // Auth
     GoRoute(path: '/login', builder: (c, s) => const LoginScreen()),
     GoRoute(path: '/register', builder: (c, s) => const RegisterScreen()),
