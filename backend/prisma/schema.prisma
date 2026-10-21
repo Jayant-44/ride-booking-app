@@ -105,6 +105,9 @@ model Customer {
 
   rides   Ride[]
   reviews Review[]
+
+  gender           String?
+  dateOfBirth      DateTime?
 }
 
 model Driver {

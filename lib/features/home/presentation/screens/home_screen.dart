@@ -51,17 +51,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _loadData() async {
-    final user = await AuthService().getStoredUser();
-    final rideResult = await RideService().getMyRides();
-    final invoiceResult = await InvoiceService().getMyInvoices();
+    try {
+      final user = await AuthService().getStoredUser();
+      final rideResult = await RideService().getMyRides();
+      final invoiceResult = await InvoiceService().getMyInvoices();
 
-    if (mounted) {
-      setState(() {
-        _user = user;
-        _rides = rideResult.rides ?? [];
-        _invoices = invoiceResult.invoices ?? [];
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _user = user;
+          _rides = rideResult.rides ?? [];
+          _invoices = invoiceResult.invoices ?? [];
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load data: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 

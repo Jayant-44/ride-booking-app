@@ -21,6 +21,15 @@ class IncomingOfferDialog extends StatefulWidget {
 class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
   bool _busy = false;
 
+  String _formatDateTime(DateTime dt) {
+    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final hour12 = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '${days[dt.weekday - 1]}, ${dt.day} ${months[dt.month - 1]} · $hour12:$m $ampm';
+  }
+
   Future<void> _accept() async {
     setState(() => _busy = true);
     final result =
@@ -74,8 +83,7 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
       canPop: false,
       child: Dialog(
         insetPadding: const EdgeInsets.all(16),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -90,6 +98,7 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // --- HEADER WITH DATE/TIME ON THE RIGHT ---
               Row(
                 children: [
                   const Icon(Icons.notifications_active_rounded,
@@ -112,6 +121,23 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
                       height: 16,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _formatDateTime(ride.scheduledAt),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -159,9 +185,12 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
                 ),
               ),
               const SizedBox(height: 16),
+              
+              // --- BUTTONS (FIXED WRAPPING) ---
               Row(
                 children: [
                   Expanded(
+                    flex: 1,
                     child: OutlinedButton(
                       onPressed: _busy ? null : _ignore,
                       style: OutlinedButton.styleFrom(
@@ -172,9 +201,11 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'IGNORE',
-                        style: TextStyle(fontWeight: FontWeight.w800),
+                      child: const FittedBox(
+                        child: Text(
+                          'IGNORE',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
                       ),
                     ),
                   ),
@@ -191,11 +222,13 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'ACCEPT RIDE',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.6,
+                      child: const FittedBox(
+                        child: Text(
+                          'ACCEPT RIDE',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.6,
+                          ),
                         ),
                       ),
                     ),

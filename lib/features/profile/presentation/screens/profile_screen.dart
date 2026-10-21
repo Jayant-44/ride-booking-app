@@ -16,34 +16,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   User? _user;
   bool _loading = true;
 
-  final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  bool _savingProfile = false;
-
-  // Change password form
-  final _pwdFormKey = GlobalKey<FormState>();
-  final _currentPwdCtrl = TextEditingController();
-  final _newPwdCtrl = TextEditingController();
-  final _confirmPwdCtrl = TextEditingController();
-  bool _savingPwd = false;
-  bool _obscureCurrent = true;
-  bool _obscureNew = true;
-
   @override
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _phoneCtrl.dispose();
-    _currentPwdCtrl.dispose();
-    _newPwdCtrl.dispose();
-    _confirmPwdCtrl.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -51,348 +27,250 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     setState(() {
       _user = user;
-      _nameCtrl.text = user?.fullName ?? '';
-      _phoneCtrl.text = user?.phone ?? '';
       _loading = false;
     });
   }
 
-  Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _savingProfile = true);
+  // ============================================================
+  // EDIT PROFILE DIALOG
+  // ============================================================
+  void _editProfile() {
+    final nameCtrl = TextEditingController(text: _user?.fullName);
+    final phoneCtrl = TextEditingController(text: _user?.phone);
+    final formKey = GlobalKey<FormState>();
+    bool saving = false;
 
-    final result = await AuthService().updateProfile(
-      fullName: _nameCtrl.text.trim(),
-      phone: _phoneCtrl.text.trim(),
-    );
-
-    if (!mounted) return;
-    setState(() => _savingProfile = false);
-
-    if (result.success) {
-      setState(() => _user = result.user);
-      _snack('Profile updated');
-    } else {
-      _snack(result.error ?? 'Update failed', isError: true);
-    }
-  }
-
-  Future<void> _changePassword() async {
-    if (!_pwdFormKey.currentState!.validate()) return;
-    setState(() => _savingPwd = true);
-
-    final result = await AuthService().changePassword(
-      currentPassword: _currentPwdCtrl.text,
-      newPassword: _newPwdCtrl.text,
-    );
-
-    if (!mounted) return;
-    setState(() => _savingPwd = false);
-
-    if (result.success) {
-      _currentPwdCtrl.clear();
-      _newPwdCtrl.clear();
-      _confirmPwdCtrl.clear();
-      _snack('Password changed successfully');
-    } else {
-      _snack(result.error ?? 'Failed', isError: true);
-    }
-  }
-
-  void _snack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? AppTheme.error : null,
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.go('/home'),
-        ),
-        backgroundColor: AppTheme.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: const Text('Profile'),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.all(20),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            ),
+            child: Form(
+              key: formKey,
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildAvatarCard(),
+                  const Text('Edit Profile', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder()),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: phoneCtrl,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(labelText: 'Phone Number', border: OutlineInputBorder()),
+                    validator: (v) => (v == null || v.trim().length < 8) ? 'Required' : null,
+                  ),
                   const SizedBox(height: 24),
-                  const _SectionLabel('PERSONAL DETAILS'),
-                  const SizedBox(height: 10),
-                  _buildProfileForm(),
-                  const SizedBox(height: 28),
-                  const _SectionLabel('CHANGE PASSWORD'),
-                  const SizedBox(height: 10),
-                  _buildPasswordForm(),
-                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: saving ? null : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setState(() => saving = true);
+                      final res = await AuthService().updateProfile(
+                        fullName: nameCtrl.text.trim(),
+                        phone: phoneCtrl.text.trim(),
+                      );
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        if (res.success) {
+                          _load();
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated')));
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res.error ?? 'Failed'), backgroundColor: Colors.red));
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      minimumSize: const Size(0, 50),
+                    ),
+                    child: saving ? const CircularProgressIndicator(color: Colors.white) : const Text('Save Changes'),
+                  ),
                 ],
               ),
             ),
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildAvatarCard() {
-    final initials = (_user?.fullName ?? 'U')
-        .split(' ')
-        .take(2)
-        .map((s) => s.isNotEmpty ? s[0].toUpperCase() : '')
-        .join();
+  // ============================================================
+  // CHANGE PASSWORD DIALOG
+  // ============================================================
+  void _changePassword() {
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool saving = false;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E3A8A), Color(0xFF3B5BC4)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            ),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Change Password', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: currentCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Current Password', border: OutlineInputBorder()),
+                    validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: newCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'New Password', border: OutlineInputBorder()),
+                    validator: (v) => (v == null || v.length < 6) ? 'Min 6 characters' : null,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: saving ? null : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setState(() => saving = true);
+                      final res = await AuthService().changePassword(
+                        currentPassword: currentCtrl.text,
+                        newPassword: newCtrl.text,
+                      );
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        if (res.success) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password changed successfully')));
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res.error ?? 'Failed'), backgroundColor: Colors.red));
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F172A),
+                      minimumSize: const Size(0, 50),
+                    ),
+                    child: saving ? const CircularProgressIndicator(color: Colors.white) : const Text('Update Password'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.white, // Matching the screenshot
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.black),
+          onPressed: () => context.pop(),
         ),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: 0.25),
-            ),
-            child: CircleAvatar(
-              radius: 32,
-              backgroundColor: Colors.white,
-              child: Text(
-                initials,
-                style: TextStyle(
-                  color: AppTheme.primary,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Profile',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () => context.push('/support'), // Links to your support page
+            icon: const Icon(Icons.help_outline, color: Colors.black, size: 20),
+            label: const Text('Help', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _user?.fullName ?? 'User',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _user?.email ?? '',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    _user?.role ?? 'CUSTOMER',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
-    );
-  }
-
-  Widget _buildProfileForm() {
-    return Form(
-      key: _formKey,
-      child: Column(
+      body: ListView(
         children: [
-          _Card(
-            child: Column(
-              children: [
-                TextFormField(
-                  controller: _nameCtrl,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name',
-                    prefixIcon: Icon(Icons.person_outline_rounded),
-                    border: InputBorder.none,
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().length < 2) ? 'Required' : null,
-                ),
-                const Divider(height: 1),
-                TextFormField(
-                  controller: _phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                    border: InputBorder.none,
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().length < 8) ? 'Required' : null,
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.email_outlined,
-                      color: Color(0xFF94A3B8)),
-                  title: const Text(
-                    'Email (locked)',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                  ),
-                  subtitle: Text(
-                    _user?.email ?? '',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                  trailing: const Icon(Icons.lock_outline_rounded,
-                      size: 16, color: Color(0xFF94A3B8)),
-                ),
-              ],
-            ),
+          _ProfileTile(
+            icon: Icons.person_outline_rounded,
+            title: 'Name',
+            subtitle: _user?.fullName ?? 'Not set',
+            onTap: _editProfile,
           ),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: _savingProfile ? null : _saveProfile,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: _savingProfile
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2.2),
-                  )
-                : const Text('Save Profile',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+          _ProfileTile(
+            icon: Icons.phone_outlined,
+            title: 'Phone Number',
+            subtitle: _user?.phone ?? 'Not set',
+            onTap: _editProfile,
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPasswordForm() {
-    return Form(
-      key: _pwdFormKey,
-      child: Column(
-        children: [
-          _Card(
-            child: Column(
-              children: [
-                TextFormField(
-                  controller: _currentPwdCtrl,
-                  obscureText: _obscureCurrent,
-                  decoration: InputDecoration(
-                    labelText: 'Current Password',
-                    prefixIcon: const Icon(Icons.lock_outline_rounded),
-                    border: InputBorder.none,
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscureCurrent
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded),
-                      onPressed: () =>
-                          setState(() => _obscureCurrent = !_obscureCurrent),
-                    ),
-                  ),
-                  validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Required' : null,
-                ),
-                const Divider(height: 1),
-                TextFormField(
-                  controller: _newPwdCtrl,
-                  obscureText: _obscureNew,
-                  decoration: InputDecoration(
-                    labelText: 'New Password',
-                    prefixIcon: const Icon(Icons.lock_reset_rounded),
-                    border: InputBorder.none,
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscureNew
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded),
-                      onPressed: () =>
-                          setState(() => _obscureNew = !_obscureNew),
-                    ),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.length < 6) return 'Min 6 characters';
-                    return null;
-                  },
-                ),
-                const Divider(height: 1),
-                TextFormField(
-                  controller: _confirmPwdCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Confirm New Password',
-                    prefixIcon: Icon(Icons.check_circle_outline_rounded),
-                    border: InputBorder.none,
-                  ),
-                  validator: (v) =>
-                      v != _newPwdCtrl.text ? 'Passwords do not match' : null,
-                ),
-              ],
-            ),
+          _ProfileTile(
+            icon: Icons.mail_outline_rounded,
+            title: 'Email',
+            subtitle: _user?.email ?? 'Not set',
+            onTap: null, // Locked
           ),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: _savingPwd ? null : _changePassword,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F172A),
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: _savingPwd
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2.2),
-                  )
-                : const Text('Change Password',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+          _ProfileTile(
+            icon: Icons.face_outlined,
+            title: 'Gender',
+            subtitle: 'Male', // Placeholder
+            onTap: null,
+          ),
+          _ProfileTile(
+            icon: Icons.calendar_today_outlined,
+            title: 'Date of Birth',
+            subtitle: 'Required',
+            isRequired: true,
+            onTap: null, // Wire to a date picker later
+          ),
+          _ProfileTile(
+            icon: Icons.workspace_premium_outlined,
+            title: 'Member Since',
+            subtitle: 'August 2022', // You can format _user.createdAt here
+            onTap: null,
+          ),
+          _ProfileTile(
+            icon: Icons.emergency_outlined,
+            title: 'Emergency contact',
+            subtitle: 'Add',
+            isActionText: true,
+            isRequired: true,
+            onTap: null,
+          ),
+          
+          // Added Change Password here since you had it before
+          _ProfileTile(
+            icon: Icons.lock_outline_rounded,
+            title: 'Change Password',
+            subtitle: 'Tap to update your password',
+            onTap: _changePassword,
           ),
         ],
       ),
@@ -400,48 +278,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// ============================================================
-// WIDGETS
-// ============================================================
+class _ProfileTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool isRequired;
+  final bool isActionText;
+  final VoidCallback? onTap;
 
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 1,
-        color: Color(0xFF64748B),
-      ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  final Widget child;
-  const _Card({required this.child});
+  const _ProfileTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.isRequired = false,
+    this.isActionText = false,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.grey.shade700, size: 24),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isRequired ? Colors.orange.shade800 : (isActionText ? AppTheme.primary : Colors.grey.shade600),
+                      fontWeight: isRequired || isActionText ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (onTap != null && !isActionText)
+              const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+            if (isActionText)
+              TextButton(
+                onPressed: onTap, 
+                child: const Text('Add', style: TextStyle(fontWeight: FontWeight.bold))
+              ),
+          ],
+        ),
       ),
-      child: child,
     );
   }
 }
