@@ -203,6 +203,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
+                  
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => context.push('/forgot-password'),
+                      child: const Text('Forgot Password?', style: TextStyle(color: AppTheme.primary)),
+                    ),
+                  ),
 
                   const SizedBox(height: 28),
 

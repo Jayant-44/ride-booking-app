@@ -203,16 +203,18 @@ export const AdminService = {
       return inv;
     });
 
-    try {
+     try {
+      const { NotificationService } = await import('../notifications/service.js');
       const total = (totalCents / 100).toFixed(2);
       const sym = input.currencyCode === 'INR' ? '₹' : '$';
+      
       await NotificationService.rideInvoiceSent(
         ride.customer.userId,
         invoice.invoiceNo,
         `${sym}${total}`
       );
     } catch (err) {
-      console.error('[createInvoiceForRide] notify failed:', err);
+      console.error('[createInvoiceForRide] Notification failed, but invoice was created:', err);
     }
 
     return invoice;

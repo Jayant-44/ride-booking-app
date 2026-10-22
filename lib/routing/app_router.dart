@@ -20,6 +20,7 @@ import '../features/history/presentation/screens/history_screen.dart';
 import '../features/support/presentation/screens/support_screen.dart';
 import '../features/notifications/presentation/screens/notifications_screen.dart';
 import '../features/auth/presentation/screens/splash_screen.dart';
+import '../features/auth/presentation/screens/forgot_password_screen.dart';
 
 final appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
@@ -64,6 +65,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/login',
       builder: (c, s) => const LoginScreen(),
+    ),
+    GoRoute(
+      path: '/forgot-password', 
+      builder: (c, s) => const ForgotPasswordScreen()
     ),
     GoRoute(
       path: '/register',

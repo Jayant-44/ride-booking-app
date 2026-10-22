@@ -86,6 +86,8 @@ model User {
   locale       String     @default("en")
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  resetCode    String?
+  resetCodeExpiresAt DateTime?
 
   customer Customer?
   driver   Driver?

@@ -49,3 +49,16 @@ initFirebase();
 app.listen(env.port, () => {
 	logger.info(`[server]: Server is running at http://localhost:${env.port}`);
 });
+
+// Prevent server from crashing on unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
+
+app.listen(env.port, () => {
+  logger.info(`[server]: Server is running at http://localhost:${env.port}`);
+});

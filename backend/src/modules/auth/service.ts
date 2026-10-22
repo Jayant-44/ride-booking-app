@@ -89,6 +89,48 @@ export const AuthService = {
     return { user: safeUser, token };
   },
 
+  async forgotPassword(email: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) throw new Error('EMAIL_NOT_FOUND');
+
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetCode: code, resetCodeExpiresAt: expiresAt },
+    });
+
+    const { sendResetEmail } = await import('../../lib/mailer.js');
+    await sendResetEmail(user.email, code);
+
+    return { message: 'Reset code sent to email' };
+  },
+
+  async resetPassword(email: string, code: string, newPassword: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) throw new Error('EMAIL_NOT_FOUND');
+
+    if (user.resetCode !== code) throw new Error('INVALID_CODE');
+    if (user.resetCodeExpiresAt && user.resetCodeExpiresAt < new Date()) {
+      throw new Error('CODE_EXPIRED');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetCode: null,
+        resetCodeExpiresAt: null,
+      },
+    });
+
+    return { message: 'Password reset successful' };
+  },
+
   // ---------- CUSTOMER REGISTER ----------
   async register(input: RegisterInput) {
     const existing = await prisma.user.findFirst({

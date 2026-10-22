@@ -40,7 +40,6 @@ class RegistrationResult {
 class AuthService {
   final Dio _dio = ApiClient().dio;
   
-  // THE FIX: Added AndroidOptions to prevent random null returns on Android
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
@@ -194,6 +193,33 @@ class AuthService {
   }
 
   // ============================================================
+  // FORGOT PASSWORD
+  // ============================================================
+  Future<RegistrationResult> forgotPassword(String email) async {
+    try {
+      final response = await _dio.post('/auth/forgot-password', data: {'email': email});
+      return RegistrationResult.success(response.data['message']?.toString() ?? 'Code sent');
+    } on DioException catch (e) {
+      return RegistrationResult.failure(e.response?.data?['message']?.toString() ?? 'Failed');
+    } catch (e) {
+      return RegistrationResult.failure('Unexpected error: $e');
+    }
+  }
+
+  Future<RegistrationResult> resetPassword({required String email, required String code, required String newPassword}) async {
+    try {
+      final response = await _dio.post('/auth/reset-password', data: {
+        'email': email, 'code': code, 'newPassword': newPassword
+      });
+      return RegistrationResult.success(response.data['message']?.toString() ?? 'Password reset');
+    } on DioException catch (e) {
+      return RegistrationResult.failure(e.response?.data?['message']?.toString() ?? 'Failed');
+    } catch (e) {
+      return RegistrationResult.failure('Unexpected error: $e');
+    }
+  }
+
+  // ============================================================
   // PROFILE
   // ============================================================
   Future<AuthResult> updateProfile({
@@ -285,7 +311,6 @@ class AuthService {
     await _storage.write(key: 'jwt_token', value: token);
     await _storage.write(key: 'user_json', value: jsonEncode(user.toJson()));
 
-    // Best-effort: register FCM token
     unawaited(registerFcmToken());
 
     return AuthResult.success(user: user, token: token);

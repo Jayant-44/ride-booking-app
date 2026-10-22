@@ -30,6 +30,31 @@ export async function registerController(req: Request, res: Response): Promise<v
   }
 }
 
+export async function forgotPasswordController(req: Request, res: Response) {
+  const { email } = req.body;
+  if (!email) { res.status(400).json({ success: false, message: 'Email required' }); return; }
+  try {
+    const result = await AuthService.forgotPassword(email);
+    res.success(result, result.message);
+  } catch (err: any) {
+    if (err.message === 'EMAIL_NOT_FOUND') { res.status(404).json({ success: false, message: 'Email not found' }); return; }
+    throw err;
+  }
+}
+
+export async function resetPasswordController(req: Request, res: Response) {
+  const { email, code, newPassword } = req.body;
+  if (!email || !code || !newPassword) { res.status(400).json({ success: false, message: 'All fields required' }); return; }
+  try {
+    const result = await AuthService.resetPassword(email, code, newPassword);
+    res.success(result, result.message);
+  } catch (err: any) {
+    if (err.message === 'INVALID_CODE') { res.status(400).json({ success: false, message: 'Invalid code' }); return; }
+    if (err.message === 'CODE_EXPIRED') { res.status(400).json({ success: false, message: 'Code expired' }); return; }
+    throw err;
+  }
+}
+
 export async function registerDriverController(req: Request, res: Response): Promise<void> {
   const v = customParse(DriverRegisterSchema, req.body);
   if (!v.success) throw new ValidationError(v.message);
