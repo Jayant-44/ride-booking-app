@@ -67,6 +67,7 @@ class Ride {
       case 'REJECTED':
         return 'Rejected';
       case 'QUOTED':
+        return 'Invoice Sent';
       case 'AWAITING_PAYMENT':
         return 'Awaiting Payment';
       case 'PAYMENT_FAILED':

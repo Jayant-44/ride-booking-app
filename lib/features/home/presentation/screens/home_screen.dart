@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_drawer.dart';
@@ -24,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<Ride> _rides = [];
   List<Invoice> _invoices = [];
   bool _loading = true;
+   Timer? _pollTimer;
 
   static const _activeStatuses = {
     'DRIVER_ASSIGNED',
@@ -37,10 +39,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadData();
+    
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _loadData(),
+    );
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -67,9 +75,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load data: $e'), backgroundColor: Colors.red),
-        );
+        // Optional: Don't show snackbar on background poll failures so we don't annoy the user
+        // ScaffoldMessenger.of(context).showSnackBar(...);
       }
     }
   }

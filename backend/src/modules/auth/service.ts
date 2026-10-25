@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 import { prisma } from '@/lib/clients/prisma.js';
+import { getAuth } from 'firebase-admin/auth';
 
 import type {
   LoginInput,
@@ -253,7 +254,7 @@ export const AuthService = {
     return user;
   },
     // ---------- UPDATE PROFILE (name / phone) ----------
-  async updateProfile(userId: string, input: UpdateProfileInput) {
+   async updateProfile(userId: string, input: UpdateProfileInput) {
     if (input.phone) {
       const conflict = await prisma.user.findFirst({
         where: { phone: input.phone, NOT: { id: userId } },
@@ -266,6 +267,9 @@ export const AuthService = {
       data: {
         ...(input.fullName !== undefined && { fullName: input.fullName }),
         ...(input.phone !== undefined && { phone: input.phone }),
+        ...(input.gender !== undefined && { gender: input.gender }),
+        ...(input.dateOfBirth !== undefined && { dateOfBirth: new Date(input.dateOfBirth) }),
+        ...(input.emergencyContact !== undefined && { emergencyContact: input.emergencyContact }),
       },
       select: userSelect,
     });
@@ -305,5 +309,47 @@ export const AuthService = {
     });
 
     return user;
+  },
+
+  async googleLogin(idToken: string) {
+    try {
+      // 1. Verify the token with Firebase using the Modular API
+      const decodedToken = await getAuth().verifyIdToken(idToken);
+      const { email, name, uid } = decodedToken;
+      
+      if (!email) throw new Error('NO_EMAIL_FROM_GOOGLE');
+
+      // 2. Check if user exists in our database
+      let user = await prisma.user.findUnique({ where: { email } });
+
+      // 3. If not, create a new user (no password needed since they use Google)
+      if (!user) {
+        // Generate a random password just in case they try to login normally later
+        const randomPassword = await bcrypt.hash(uid + 'GoogleSecret!', SALT_ROUNDS);
+        
+        user = await prisma.user.create({
+          data: {
+            email: email,
+            fullName: name || 'Google User',
+            phone: `G-${uid.substring(0, 10)}`, // Placeholder phone
+            password: randomPassword,
+            role: 'CUSTOMER',
+            status: 'ACTIVE',
+          },
+        });
+
+        // Create the Customer profile
+        await prisma.customer.create({ data: { userId: user.id } });
+      }
+
+      // 4. Generate our app's JWT token
+      const token = signToken(user.id, user.role, user.isSuperAdmin);
+      const { password: _omit, ...safeUser } = user;
+      
+      return { user: safeUser, token };
+    } catch (error) {
+      console.error('Google Auth Error:', error);
+      throw new Error('INVALID_GOOGLE_TOKEN');
+    }
   },
 };

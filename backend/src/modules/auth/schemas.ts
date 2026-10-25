@@ -67,6 +67,9 @@ export const UpdateProfileSchema = z
   .object({
     fullName: z.string().min(2).optional(),
     phone: z.string().min(8).optional(),
+    gender: z.string().optional(),
+    dateOfBirth: z.string().optional(),
+    emergencyContact: z.string().optional(),
   })
   .refine((d) => Object.keys(d).length > 0, {
     message: 'At least one field is required',

@@ -71,6 +71,21 @@ class AuthService {
     }
   }
 
+    Future<AuthResult> googleLogin(String idToken) async {
+    try {
+      final response = await _dio.post(
+        '/auth/google',
+        data: {'idToken': idToken},
+      );
+      return await _handleAuthResponse(response);
+    } on DioException catch (e) {
+      final message = e.response?.data?['message']?.toString() ?? 'Google login failed';
+      return AuthResult.failure(message);
+    } catch (e) {
+      return AuthResult.failure('Unexpected error: $e');
+    }
+  }
+
   // ============================================================
   // CUSTOMER REGISTER
   // ============================================================
@@ -225,6 +240,9 @@ class AuthService {
   Future<AuthResult> updateProfile({
     String? fullName,
     String? phone,
+    String? gender,
+    DateTime? dateOfBirth,
+    String? emergencyContact,
   }) async {
     try {
       final response = await _dio.patch(
@@ -232,6 +250,9 @@ class AuthService {
         data: {
           'fullName': ?fullName,
           'phone': ?phone,
+          'gender': ?gender,
+          'dateOfBirth': ?dateOfBirth?.toUtc().toIso8601String(),
+          'emergencyContact': ?emergencyContact,
         },
       );
 
@@ -239,8 +260,7 @@ class AuthService {
       await _storage.write(key: 'user_json', value: jsonEncode(user.toJson()));
       return AuthResult.success(user: user, token: '');
     } on DioException catch (e) {
-      final message =
-          e.response?.data?['message']?.toString() ?? 'Update failed';
+      final message = e.response?.data?['message']?.toString() ?? 'Update failed';
       return AuthResult.failure(message);
     } catch (e) {
       return AuthResult.failure('Unexpected error: $e');

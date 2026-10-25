@@ -10,6 +10,9 @@ class User {
   final String timezone;
   final String currency;
   final String locale;
+  final String? gender;
+  final DateTime? dateOfBirth;
+  final String? emergencyContact;
 
   const User({
     required this.id,
@@ -23,6 +26,9 @@ class User {
     required this.locale,
     this.uniqueId,
     this.isSuperAdmin = false,
+    this.gender,
+    this.dateOfBirth,
+    this.emergencyContact,
   });
 
   factory User.fromJson(Map<String, dynamic> json) => User(
@@ -37,6 +43,11 @@ class User {
         timezone: json['timezone'] as String? ?? 'UTC',
         currency: json['currency'] as String? ?? 'USD',
         locale: json['locale'] as String? ?? 'en',
+        gender: json['gender'] as String?,
+        dateOfBirth: json['dateOfBirth'] != null 
+            ? DateTime.parse(json['dateOfBirth'] as String).toLocal() 
+            : null,
+        emergencyContact: json['emergencyContact'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -51,5 +62,8 @@ class User {
         'timezone': timezone,
         'currency': currency,
         'locale': locale,
+        'gender': gender,
+        'dateOfBirth': dateOfBirth?.toIso8601String(),
+        'emergencyContact': emergencyContact,
       };
 }

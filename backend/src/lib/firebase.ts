@@ -8,6 +8,7 @@ import {
   cert,
 } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
+import { getAuth } from 'firebase-admin/auth';
 
 let initialized = false;
 
@@ -59,4 +60,8 @@ export function isFirebaseReady(): boolean {
 
 export function getMessagingClient() {
   return getMessaging();
+}
+
+export function getAuthClient() {
+  return getAuth();
 }

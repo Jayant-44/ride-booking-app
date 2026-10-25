@@ -13,6 +13,7 @@ import {
   updateSettingsController,
   forgotPasswordController,
   resetPasswordController,
+  googleLoginController,
 } from './controller.js';
 
 const router = Router();
@@ -24,6 +25,7 @@ router.post('/register-admin', registerAdminController);
 router.post('/login', loginController);
 router.post('/forgot-password', forgotPasswordController);
 router.post('/reset-password', resetPasswordController);
+router.post('/google', googleLoginController);
 
 // Protected
 router.get('/me', requireAuth, meController);

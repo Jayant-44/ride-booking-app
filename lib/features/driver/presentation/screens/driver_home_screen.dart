@@ -67,29 +67,31 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     if (_offerDialogOpen) return;
     if (!mounted) return;
 
-    final result = await DriverService().getMyAssignments();
-    final offers =
-        (result.assignments ?? []).where((a) => a.isOffered).toList();
+    try {
+      final result = await DriverService().getMyAssignments();
+      final offers = (result.assignments ?? []).where((a) => a.isOffered).toList();
 
-    if (offers.isEmpty || !mounted) return;
+      if (offers.isEmpty || !mounted) return;
 
-    // Sort offers by scheduled date so the nearest one pops first
-    offers.sort((a, b) =>
-        a.ride.scheduledAt.compareTo(b.ride.scheduledAt));
+      // Sort by schedule date to pick the nearest one
+      offers.sort((a, b) => a.ride.scheduledAt.compareTo(b.ride.scheduledAt));
 
-    _offerDialogOpen = true;
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      useSafeArea: false,
-      builder: (_) => IncomingOfferDialog(
-        assignment: offers.first,
-        onDismissed: () {
-          _offerDialogOpen = false;
-          _loadData();
-        },
-      ),
-    );
+      _offerDialogOpen = true;
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        useSafeArea: false,
+        builder: (_) => IncomingOfferDialog(
+          assignment: offers.first,
+          onDismissed: () {
+            _offerDialogOpen = false;
+            _loadData();
+          },
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error polling for offers: $e');
+    }
   }
 
   // ============================================================

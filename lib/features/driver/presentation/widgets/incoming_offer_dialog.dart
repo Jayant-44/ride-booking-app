@@ -23,7 +23,10 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
 
   String _formatDateTime(DateTime dt) {
     final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
     final hour12 = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
     final ampm = dt.hour >= 12 ? 'PM' : 'AM';
     final m = dt.minute.toString().padLeft(2, '0');
@@ -98,12 +101,12 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // --- HEADER WITH DATE/TIME ON THE RIGHT ---
+              // --- HEADER WITH DATE/TIME ON TOP RIGHT ---
               Row(
                 children: [
                   const Icon(Icons.notifications_active_rounded,
-                      color: Colors.white, size: 24),
-                  const SizedBox(width: 10),
+                      color: Colors.white, size: 22),
+                  const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
                       'NEW RIDE OFFER',
@@ -111,7 +114,7 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 1.5,
+                        letterSpacing: 1.2,
                       ),
                     ),
                   ),
@@ -127,23 +130,32 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
+                        color: Colors.white.withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
-                        _formatDateTime(ride.scheduledAt),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.schedule_rounded, color: Colors.white, size: 12),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatDateTime(ride.scheduledAt),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                 ],
               ),
               const SizedBox(height: 16),
+              
+              // --- CUSTOMER DETAILS CARD ---
               Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(14),
@@ -155,7 +167,7 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
                       ride.customer.fullName,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 17,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -184,9 +196,9 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               
-              // --- BUTTONS (FIXED WRAPPING) ---
+              // --- BUTTONS (Fixed Wrapping) ---
               Row(
                 children: [
                   Expanded(
@@ -197,14 +209,19 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
                         foregroundColor: Colors.white,
                         side: const BorderSide(color: Colors.white, width: 1.5),
                         minimumSize: const Size(0, 52),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: const FittedBox(
+                        fit: BoxFit.scaleDown,
                         child: Text(
                           'IGNORE',
-                          style: TextStyle(fontWeight: FontWeight.w800),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
                         ),
                       ),
                     ),
@@ -223,11 +240,12 @@ class _IncomingOfferDialogState extends State<IncomingOfferDialog> {
                         ),
                       ),
                       child: const FittedBox(
+                        fit: BoxFit.scaleDown,
                         child: Text(
                           'ACCEPT RIDE',
                           style: TextStyle(
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 0.6,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),

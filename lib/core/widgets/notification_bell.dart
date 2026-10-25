@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 
 import '../../features/notifications/data/notification_service.dart';
 
@@ -14,6 +15,7 @@ class _NotificationBellState extends State<NotificationBell>
     with WidgetsBindingObserver {
   final _api = NotificationsApi();
   int _count = 0;
+  Timer? _pollTimer;
 
   @override
   void initState() {
@@ -24,6 +26,7 @@ class _NotificationBellState extends State<NotificationBell>
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

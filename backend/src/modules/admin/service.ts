@@ -203,7 +203,7 @@ export const AdminService = {
       return inv;
     });
 
-     try {
+    try {
       const { NotificationService } = await import('../notifications/service.js');
       const total = (totalCents / 100).toFixed(2);
       const sym = input.currencyCode === 'INR' ? '₹' : '$';
@@ -238,12 +238,8 @@ export const AdminService = {
       throw new Error('RIDE_NOT_CONFIRMED');
     }
 
-    const windowStart = new Date(
-      ride.scheduledAt.getTime() - 2 * 60 * 60 * 1000
-    );
-    const windowEnd = new Date(
-      ride.scheduledAt.getTime() + 2 * 60 * 60 * 1000
-    );
+    const windowStart = new Date(ride.scheduledAt.getTime() - 2 * 60 * 60 * 1000);
+    const windowEnd = new Date(ride.scheduledAt.getTime() + 2 * 60 * 60 * 1000);
 
     const busyDriverIds = await prisma.assignment
       .findMany({
@@ -306,22 +302,20 @@ export const AdminService = {
       return offers;
     });
 
-        // Notify every driver — include date/time in the body
+    // --- Notify every driver ---
     const customerName = ride.customer.user.fullName;
     const d = ride.scheduledAt;
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const hour12 = d.getHours() % 12 || 12;
     const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
-    const timeLabel =
-      `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} · ` +
-      `${hour12}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
+    const timeLabel = `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} · ${hour12}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
+
+    console.log(`[broadcast] Attempting to notify ${availableDrivers.length} drivers...`);
 
     try {
-      await Promise.all(
+      // Using Promise.allSettled so one failed push doesn't stop the others
+      const results = await Promise.allSettled(
         availableDrivers.map((driver) =>
           NotificationService.sendToUser(driver.user.id, {
             title: 'New Ride Available',
@@ -335,6 +329,9 @@ export const AdminService = {
           })
         )
       );
+
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      console.log(`[broadcast] Successfully sent push to ${successful}/${availableDrivers.length} drivers.`);
     } catch (err) {
       console.error('[broadcastToDrivers] notify failed:', err);
     }     
@@ -446,7 +443,6 @@ export const AdminService = {
       },
       select: {
         id: true,
-        email: true,
         fullName: true,
         role: true,
         status: true,

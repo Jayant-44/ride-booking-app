@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../data/auth_service.dart';
@@ -66,7 +68,62 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _loading = false); // <--- THIS STOPS THE SPINNER
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // ============================================================
+  // GOOGLE SIGN IN (v7.0.0 API)
+  // ============================================================
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _loading = true);
+    try {
+      // 1. Initialize Google Sign In (v7 API)
+      final GoogleSignIn signIn = GoogleSignIn.instance;
+      await signIn.initialize(); 
+      
+      // 2. Prompt the user to select an account (Returns non-nullable in v7)
+      final GoogleSignInAccount googleUser = await signIn.authenticate();
+
+      // 3. Get the authentication tokens (Synchronous getter in v7, no accessToken)
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+      );
+
+      // 4. Sign in to Firebase with the Google token
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      
+      // 5. Get the Firebase ID Token to send to our backend
+      final idToken = await userCredential.user?.getIdToken();
+      
+      if (idToken == null) throw Exception('Failed to get Firebase token');
+
+      // 6. Send to our backend
+      final result = await AuthService().googleLogin(idToken);
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      if (result.success) {
+        switch (result.user!.role) {
+          case 'DRIVER': context.go('/driver/home'); break;
+          case 'ADMIN': context.go('/admin/home'); break;
+          default: context.go('/home');
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.error ?? 'Login failed'), backgroundColor: AppTheme.error),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google Sign-In Error: $e'), backgroundColor: AppTheme.error),
+        );
+      }
     }
   }
 
@@ -244,8 +301,41 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
 
                   const SizedBox(height: 24),
+                  
+                  // ---------- GOOGLE SIGN IN ----------
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text("OR", style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
-                                    // ---------- SIGN UP / REGISTER LINKS ----------
+                  OutlinedButton(
+                    onPressed: _loading ? null : _handleGoogleSignIn,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black,
+                      minimumSize: const Size(double.infinity, 54),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('G', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue)),
+                        const SizedBox(width: 10),
+                        const Text('Continue with Google', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // ---------- SIGN UP / REGISTER LINKS ----------
                   if (_role == LoginRole.customer) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,

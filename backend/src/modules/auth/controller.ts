@@ -210,3 +210,23 @@ export async function updateSettingsController(
   const user = await AuthService.updateSettings(userId, v.data);
   res.success(user, 'Settings updated');
 }
+
+export async function googleLoginController(req: Request, res: Response): Promise<void> {
+  const { idToken } = req.body;
+  
+  if (!idToken) {
+    res.status(400).json({ success: false, message: 'ID Token is required' });
+    return;
+  }
+
+  try {
+    const result = await AuthService.googleLogin(idToken);
+    res.success(result, 'Google login successful');
+  } catch (err) {
+    if (err instanceof Error && err.message === 'INVALID_GOOGLE_TOKEN') {
+      res.status(401).json({ success: false, message: 'Invalid Google token' });
+      return;
+    }
+    throw err;
+  }
+}
