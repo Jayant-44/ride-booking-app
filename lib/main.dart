@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/foundation.dart';
+import 'firebase_options.dart';
 
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
@@ -18,9 +19,14 @@ Future<void> main() async {
   await dotenv.load(fileName: envFile);
 
   try {
-    await Firebase.initializeApp();
+    // Pass the options explicitly to fix the resource loading error
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await NotificationService().initialize();
+    debugPrint('[main] Firebase initialized successfully');
   } catch (e) {
     debugPrint('[main] Firebase init failed: $e');
   }

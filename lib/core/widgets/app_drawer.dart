@@ -193,7 +193,15 @@ class _AppDrawerState extends State<AppDrawer> {
                   _DrawerItem(
                     icon: Icons.person_rounded,
                     label: 'Profile',
-                    onTap: () => _go('/profile'),
+                    onTap: () {
+                      if (isAdmin) {
+                        _go('/admin/profile');
+                      } else if (isDriver) {
+                        _go('/driver/profile');
+                      } else {
+                        _go('/profile'); // Customer profile
+                      }
+                    },
                   ),
                   _DrawerItem(
                     icon: Icons.history_rounded,

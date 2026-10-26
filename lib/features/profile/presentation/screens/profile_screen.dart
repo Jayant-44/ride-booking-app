@@ -365,7 +365,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: Colors.black),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/home'), 
         ),
         backgroundColor: Colors.white,
         elevation: 0,

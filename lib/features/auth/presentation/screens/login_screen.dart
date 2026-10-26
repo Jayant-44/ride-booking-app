@@ -75,17 +75,17 @@ class _LoginScreenState extends State<LoginScreen> {
   // ============================================================
   // GOOGLE SIGN IN (v7.0.0 API)
   // ============================================================
-  Future<void> _handleGoogleSignIn() async {
+    Future<void> _handleGoogleSignIn() async {
     setState(() => _loading = true);
     try {
-      // 1. Initialize Google Sign In (v7 API)
       final GoogleSignIn signIn = GoogleSignIn.instance;
-      await signIn.initialize(); 
-      
-      // 2. Prompt the user to select an account (Returns non-nullable in v7)
-      final GoogleSignInAccount googleUser = await signIn.authenticate();
 
-      // 3. Get the authentication tokens (Synchronous getter in v7, no accessToken)
+      await signIn.initialize(
+        clientId: '116575376090-tg7qfiuscnkj3toln3bk3b89cp526vme.apps.googleusercontent.com',
+        serverClientId: '116575376090-t3r633nqf4liils0vo5hia1u3u69n3t2.apps.googleusercontent.com',
+      ); 
+      
+      final GoogleSignInAccount googleUser = await signIn.authenticate();
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       
       final credential = GoogleAuthProvider.credential(

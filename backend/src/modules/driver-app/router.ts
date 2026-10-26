@@ -9,6 +9,7 @@ import {
   acceptAssignmentController,
   rejectAssignmentController,
   progressRideController,
+  getProfileController
 } from './controller.js';
 
 const router = Router();
@@ -21,5 +22,7 @@ router.get('/assignments/:id', getAssignmentDetailController);
 router.patch('/assignments/:id/accept', acceptAssignmentController);
 router.patch('/assignments/:id/reject', rejectAssignmentController);
 router.patch('/rides/:id/status', progressRideController);
+router.get('/profile', getProfileController);
+
 
 export default router;

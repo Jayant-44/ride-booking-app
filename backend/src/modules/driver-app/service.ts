@@ -35,6 +35,20 @@ export const DriverAppService = {
     });
   },
 
+  async getProfile(userId: string) {
+    const driver = await prisma.driver.findUnique({
+      where: { userId },
+      include: {
+        user: {
+          select: { fullName: true, email: true, phone: true, status: true },
+        },
+        vehicles: true,
+      },
+    });
+    if (!driver) throw new Error('DRIVER_NOT_FOUND');
+    return driver;
+  },
+
   async getAssignmentDetail(userId: string, assignmentId: string) {
     const driverId = await resolveDriverId(userId);
 

@@ -21,6 +21,8 @@ import '../features/support/presentation/screens/support_screen.dart';
 import '../features/notifications/presentation/screens/notifications_screen.dart';
 import '../features/auth/presentation/screens/splash_screen.dart';
 import '../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../features/driver/presentation/screens/driver_profile_screen.dart';
+import '../features/admin/presentation/screens/admin_profile_screen.dart';
 
 final appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
@@ -137,6 +139,14 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/support',
       builder: (c, s) => const SupportScreen(),
+    ),
+    GoRoute(
+      path: '/driver/profile',
+      builder: (c, s) => const DriverProfileScreen(),
+    ),
+    GoRoute(
+      path: '/admin/profile',
+      builder: (c, s) => const AdminProfileScreen(),
     ),
   ],
 );

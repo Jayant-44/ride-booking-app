@@ -32,6 +32,9 @@ const userSelect = {
   currency: true,
   locale: true,
   createdAt: true,
+  gender: true,
+  dateOfBirth: true,
+  emergencyContact: true,
 } as const;
 
 function signToken(

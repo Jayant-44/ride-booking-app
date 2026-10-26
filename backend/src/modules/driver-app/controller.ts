@@ -154,3 +154,19 @@ export async function progressRideController(req: Request, res: Response): Promi
     throw err;
   }
 }
+
+export async function getProfileController(req: Request, res: Response): Promise<void> {
+  const userId = (req as any).user?.id;
+  if (!userId) { res.status(401).json({ success: false, message: 'Not authenticated' }); return; }
+  
+  try {
+    const profile = await DriverAppService.getProfile(userId);
+    res.success(profile);
+  } catch (err) {
+    if (err instanceof Error && err.message === 'DRIVER_NOT_FOUND') {
+      res.status(404).json({ success: false, message: 'Driver profile not found' });
+      return;
+    }
+    throw err;
+  }
+}
